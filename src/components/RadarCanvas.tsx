@@ -125,6 +125,29 @@ export default function RadarCanvas({
             </linearGradient>
           </defs>
 
+          {/* ─── Nautical Ocean Water Background ─── */}
+          <image
+            href="/water_bg.png"
+            x="0"
+            y="0"
+            width="800"
+            height="600"
+            preserveAspectRatio="xMidYMid slice"
+            opacity="0.75"
+            className="pointer-events-none"
+          />
+
+          {/* Deep tactical maritime tint for high HUD contrast */}
+          <rect
+            x="0"
+            y="0"
+            width="800"
+            height="600"
+            fill="#061224"
+            opacity="0.30"
+            className="pointer-events-none"
+          />
+
           {/* ─── Grid Lines ─── */}
           {Array.from({ length: 41 }, (_, i) => (
             <line
