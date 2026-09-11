@@ -25,6 +25,7 @@ import {
   playVictoryFanfare,
   setSoundMuted,
 } from './utils/audio';
+import { Smartphone, X, Compass } from 'lucide-react';
 
 function App() {
   const [selectedScenarioId, setSelectedScenarioId] = useState('scenario-1');
@@ -56,6 +57,26 @@ function App() {
 
   // Responsive Drawer State (Requirement 1)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Mobile Orientation & Rotated Screen Tracking
+  const [isPortraitMobile, setIsPortraitMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768 && window.innerHeight > window.innerWidth;
+  });
+  const [showRotateTip, setShowRotateTip] = useState(true);
+
+  useEffect(() => {
+    const checkOrientation = () => {
+      const isPortrait = window.innerWidth < 768 && window.innerHeight > window.innerWidth;
+      setIsPortraitMobile(isPortrait);
+    };
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, []);
 
   // Manual Dispatch State (Requirement 1 of Phase 4)
   const [isManualDispatchMode, setIsManualDispatchMode] = useState(false);
@@ -683,6 +704,32 @@ function App() {
           onCloseDrawer={() => setIsDrawerOpen(false)}
         />
       </div>
+
+      {/* ─── Mobile Portrait Orientation Advisor Banner ─── */}
+      {isPortraitMobile && showRotateTip && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-35 px-4 py-2 rounded-full glass-modal border border-amber-400/50 text-[11px] font-outfit font-medium text-amber-200 flex items-center gap-2.5 shadow-[0_10px_35px_rgba(0,0,0,0.75)] animate-bounce-slow max-w-[90vw]">
+          <Smartphone className="text-amber-400 rotate-90 animate-pulse shrink-0" size={15} />
+          <span className="truncate">Rotate device to landscape for full tactical war-room view</span>
+          <button
+            onClick={() => setShowRotateTip(false)}
+            className="text-slate-400 hover:text-white p-1 rounded-full cursor-pointer shrink-0"
+            title="Dismiss tip"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
+      {/* Mobile Floating Quick Command Deck Button (Portrait / Landscape FAB) */}
+      {!isDrawerOpen && (
+        <button
+          onClick={() => setIsDrawerOpen(true)}
+          className="lg:hidden fixed bottom-4 right-4 z-30 w-11 h-11 rounded-full glass-card border border-amber-400/60 bg-gradient-to-br from-amber-500/20 to-amber-500/5 text-amber-300 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.25)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          title="Open Command Deck"
+        >
+          <Compass size={20} className="animate-spin-slow" />
+        </button>
+      )}
 
       {/* Interactive Manual Dispatch Popover Modal */}
       <ManualDispatchModal

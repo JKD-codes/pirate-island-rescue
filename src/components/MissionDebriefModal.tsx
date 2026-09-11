@@ -47,7 +47,7 @@ export default function MissionDebriefModal({
             onClick={onClose}
             className="text-[#c89b3c] hover:text-[#fef3c7] p-1 rounded transition-colors cursor-pointer"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 

@@ -61,6 +61,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'fleet' | 'logs'>('all');
   const logEndRef = useRef<HTMLDivElement>(null);
+  const [mobileTab, setMobileTab] = useState<'console' | 'fleet' | 'islands' | 'logs'>('console');
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -84,7 +85,7 @@ export default function Sidebar({
             onClick={onCloseDrawer}
             className="text-[#c89b3c] hover:text-amber-200 p-1 rounded transition-colors"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
@@ -133,7 +134,11 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Primary Controls */}
+      {/* ─── Action Buttons / Command Console ─── */}
+      <div className={`px-4 pt-3.5 pb-3 space-y-2.5 border-b border-amber-500/15 shrink-0 ${mobileTab !== 'console' ? 'hidden lg:block' : 'block'}`}>
+        <SectionLabel icon={<Compass size={13} />} text="Naval Command Console" />
+
+        {/* Primary Action Buttons */}
         <div className="flex gap-2">
           <button
             onClick={onSolve}

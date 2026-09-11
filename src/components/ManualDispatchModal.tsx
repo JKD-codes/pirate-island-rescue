@@ -54,7 +54,7 @@ export default function ManualDispatchModal({
             onClick={onClose}
             className="text-[#c89b3c] hover:text-amber-200 p-1 rounded transition-colors cursor-pointer"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
