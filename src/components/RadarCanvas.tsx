@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import type { Island, Ship, Storm } from '../types';
 import { TRIAGE_COLORS, SHIP_COLORS } from '../data/entities';
 
@@ -7,6 +7,7 @@ interface RadarCanvasProps {
   ships: Ship[];
   storms: Storm[];
   onStormDrag: (stormId: string, x: number, y: number) => void;
+  onStormDragEnd?: (stormId: string) => void;
   isManualDispatchMode?: boolean;
   selectedShipId?: string | null;
   onSelectShip?: (shipId: string) => void;
@@ -18,73 +19,118 @@ export default function RadarCanvas({
   ships,
   storms,
   onStormDrag,
+  onStormDragEnd,
   isManualDispatchMode = false,
   selectedShipId = null,
   onSelectShip,
   onSelectIsland,
 }: RadarCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [dragging, setDragging] = useState<string | null>(null);
+  const draggingRef = useRef<string | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
-  // Convert mouse event to SVG coordinates
-  const toSVGPoint = useCallback(
-    (e: React.MouseEvent) => {
-      const svg = svgRef.current;
-      if (!svg) return { x: 0, y: 0 };
-      const pt = svg.createSVGPoint();
-      pt.x = e.clientX;
-      pt.y = e.clientY;
-      const ctm = svg.getScreenCTM();
-      if (!ctm) return { x: 0, y: 0 };
-      const svgP = pt.matrixTransform(ctm.inverse());
-      return { x: svgP.x, y: svgP.y };
-    },
-    []
-  );
+  // Convert client coordinates to SVG canvas coordinates
+  const clientToSVG = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const svgP = pt.matrixTransform(ctm.inverse());
+    return {
+      x: Math.max(25, Math.min(775, Math.round(svgP.x))),
+      y: Math.max(25, Math.min(575, Math.round(svgP.y))),
+    };
+  }, []);
 
-  const handleMouseDown = (stormId: string) => {
-    setDragging(stormId);
+  // Pointer down handler on hazard sprite
+  const handleHazardPointerDown = (stormId: string, e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    draggingRef.current = stormId;
+    setActiveDragId(stormId);
+
+    const { x, y } = clientToSVG(e.clientX, e.clientY);
+    onStormDrag(stormId, x, y);
   };
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (!dragging) return;
-      const { x, y } = toSVGPoint(e);
-      const cx = Math.max(0, Math.min(800, x));
-      const cy = Math.max(0, Math.min(600, y));
-      onStormDrag(dragging, cx, cy);
-    },
-    [dragging, toSVGPoint, onStormDrag]
-  );
+  // Window-level butter-smooth pointermove and pointerup (never drops or lags)
+  useEffect(() => {
+    if (!activeDragId) return;
 
-  const handleMouseUp = () => setDragging(null);
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!draggingRef.current) return;
+      const stormId = draggingRef.current;
+      const { x, y } = clientToSVG(e.clientX, e.clientY);
+
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = requestAnimationFrame(() => {
+        onStormDrag(stormId, x, y);
+      });
+    };
+
+    const handlePointerUp = () => {
+      if (draggingRef.current) {
+        const stormId = draggingRef.current;
+        if (onStormDragEnd) {
+          onStormDragEnd(stormId);
+        }
+        draggingRef.current = null;
+        setActiveDragId(null);
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    };
+  }, [activeDragId, clientToSVG, onStormDrag, onStormDragEnd]);
 
   return (
-    <div className="flex-1 flex items-center justify-center p-3 min-w-0">
-      <div className="relative w-full max-w-[1000px] aspect-[4/3] rounded-lg border border-amber-500/15 bg-[#060a12] overflow-hidden shadow-[0_0_40px_rgba(56,189,248,0.04)]">
-        {/* Corner decorations */}
-        <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-sky-500/30 rounded-tl z-10" />
-        <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-sky-500/30 rounded-tr z-10" />
-        <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-sky-500/30 rounded-bl z-10" />
-        <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-sky-500/30 rounded-br z-10" />
-
-        {/* Radar label */}
-        <div className="absolute top-2 left-3 z-10 text-[9px] font-mono text-sky-500/40 tracking-[0.2em] uppercase">
-          Tactical Radar — Sector 7G
+    <div className="flex-1 flex items-center justify-center p-3 min-w-0 bg-[#0d0704]">
+      {/* ─── Spanish Galleon Teak & Brass Studded Maritime Chart Frame ─── */}
+      <div className="relative w-full max-w-[1000px] aspect-[4/3] rounded-xl border-[3px] border-[#c89b3c]/80 bg-[#05111b] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.95)] ring-4 ring-[#2c1808]">
+        {/* Ornate Antique Brass Studded Corners */}
+        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-[#d4af37] rounded-tl z-10 pointer-events-none drop-shadow">
+          <div className="w-1.5 h-1.5 rounded-full bg-[#f3e5ab] m-1 shadow-[0_0_4px_#f3e5ab]" />
         </div>
-        <div className="absolute top-2 right-3 z-10 text-[9px] font-mono text-amber-500/40 tracking-wider">
-          viewBox 800×600
+        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-[#d4af37] rounded-tr z-10 pointer-events-none drop-shadow">
+          <div className="w-1.5 h-1.5 rounded-full bg-[#f3e5ab] ml-auto mr-1 mt-1 shadow-[0_0_4px_#f3e5ab]" />
+        </div>
+        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-[#d4af37] rounded-bl z-10 pointer-events-none drop-shadow">
+          <div className="w-1.5 h-1.5 rounded-full bg-[#f3e5ab] ml-1 mb-1 shadow-[0_0_4px_#f3e5ab]" />
+        </div>
+        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-[#d4af37] rounded-br z-10 pointer-events-none drop-shadow">
+          <div className="w-1.5 h-1.5 rounded-full bg-[#f3e5ab] ml-auto mr-1 mb-1 shadow-[0_0_4px_#f3e5ab]" />
         </div>
 
-        {/* Manual Dispatch Mode Status Banner */}
+        {/* Nautical Chart Banner Title */}
+        <div className="absolute top-2 left-4 z-10 text-[10px] font-heading font-bold text-amber-200/80 tracking-[0.18em] uppercase flex items-center gap-1.5 drop-shadow">
+          <span className="text-[#d4af37]">🧭</span>
+          <span>Grand Sea Chart — Sector 7G</span>
+        </div>
+        <div className="absolute top-2 right-4 z-10 text-[9px] font-parchment text-[#c89b3c]/80 tracking-wider hidden sm:block">
+          Grid: 800 × 600 Leagues
+        </div>
+
+        {/* Royal Charter Order Status Banner (Manual Dispatch Mode) */}
         {isManualDispatchMode && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 px-3 py-0.5 bg-amber-500/20 border border-amber-500/50 rounded-full text-[9px] font-mono font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_15px_rgba(245,158,11,0.2)] animate-pulse">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-            <span>MANUAL DISPATCH:</span>
-            <span className="text-slate-200">
+          <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-10 px-4 py-0.5 bg-[#2a1708]/95 border-2 border-[#d4af37] rounded-full text-[9.5px] font-heading font-bold text-[#f3e5ab] uppercase tracking-wider flex items-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] animate-pulse">
+            <span className="text-amber-400">📜</span>
+            <span className="text-amber-300">ROYAL CHARTER:</span>
+            <span className="text-[#f4ecd8]">
               {selectedShipId
-                ? 'Select destination atoll on map'
-                : 'Click an idle cutter to select'}
+                ? 'Decree destination atoll on the chart'
+                : 'Select an idle galleon to charter'}
             </span>
           </div>
         )}
@@ -94,9 +140,6 @@ export default function RadarCanvas({
           viewBox="0 0 800 600"
           preserveAspectRatio="xMidYMid meet"
           className="w-full h-full select-none"
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
         >
           <defs>
             {/* Storm pulsing glow */}
@@ -104,6 +147,12 @@ export default function RadarCanvas({
               <stop offset="0%" stopColor="#ef4444" stopOpacity="0.15" />
               <stop offset="70%" stopColor="#ef4444" stopOpacity="0.05" />
               <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
+            </radialGradient>
+            {/* Monster pulsing glow */}
+            <radialGradient id="monsterGlow">
+              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.25" />
+              <stop offset="70%" stopColor="#7c3aed" stopOpacity="0.08" />
+              <stop offset="100%" stopColor="#4c1d95" stopOpacity="0" />
             </radialGradient>
             {/* Island glow for each triage */}
             {(['Critical', 'Urgent', 'Stable'] as const).map((t) => (
@@ -148,7 +197,7 @@ export default function RadarCanvas({
             className="pointer-events-none"
           />
 
-          {/* ─── Grid Lines ─── */}
+          {/* ─── Antique Nautical Chart Rhumb & Coordinate Grid Lines ─── */}
           {Array.from({ length: 41 }, (_, i) => (
             <line
               key={`vg-${i}`}
@@ -156,9 +205,10 @@ export default function RadarCanvas({
               y1={0}
               x2={i * 20}
               y2={600}
-              stroke="#1e3a5f"
-              strokeOpacity={i % 2 === 0 ? 0.2 : 0.07}
-              strokeWidth={i % 2 === 0 ? 0.5 : 0.3}
+              stroke="#c89b3c"
+              strokeOpacity={i % 5 === 0 ? 0.22 : 0.05}
+              strokeWidth={i % 5 === 0 ? 0.7 : 0.35}
+              strokeDasharray={i % 5 === 0 ? '4 2' : undefined}
             />
           ))}
           {Array.from({ length: 31 }, (_, i) => (
@@ -168,128 +218,192 @@ export default function RadarCanvas({
               y1={i * 20}
               x2={800}
               y2={i * 20}
-              stroke="#1e3a5f"
-              strokeOpacity={i % 2 === 0 ? 0.2 : 0.07}
-              strokeWidth={i % 2 === 0 ? 0.5 : 0.3}
+              stroke="#c89b3c"
+              strokeOpacity={i % 5 === 0 ? 0.22 : 0.05}
+              strokeWidth={i % 5 === 0 ? 0.7 : 0.35}
+              strokeDasharray={i % 5 === 0 ? '4 2' : undefined}
             />
           ))}
 
-          {/* ─── Scan Line Animation ─── */}
-          <rect x="0" y="0" width="800" height="40" fill="url(#scanLine)">
+          {/* ─── Antique Compass Rose Watermark ─── */}
+          <g transform="translate(710, 85)" opacity="0.3" className="pointer-events-none">
+            <circle r="40" fill="none" stroke="#d4af37" strokeWidth="0.8" strokeDasharray="3 2" />
+            <circle r="34" fill="none" stroke="#c89b3c" strokeWidth="1" />
+            <circle r="5" fill="#f59e0b" fillOpacity="0.4" />
+            {/* 8-pointed Nautical Star */}
+            <polygon points="0,-34 3,-7 34,0 3,7 0,34 -3,7 -34,0 -3,-7" fill="#d4af37" fillOpacity="0.35" stroke="#d4af37" strokeWidth="0.8" />
+            <polygon points="0,-34 3,-6 0,-1 -3,-6" fill="#f59e0b" />
+            <text x="0" y="-38" textAnchor="middle" fill="#f3e5ab" className="text-[10px] font-pirate font-bold">N</text>
+            <text x="0" y="46" textAnchor="middle" fill="#d4af37" className="text-[8.5px] font-pirate font-bold">S</text>
+            <text x="44" y="3" textAnchor="middle" fill="#d4af37" className="text-[8.5px] font-pirate font-bold">E</text>
+            <text x="-44" y="3" textAnchor="middle" fill="#d4af37" className="text-[8.5px] font-pirate font-bold">W</text>
+          </g>
+
+          {/* ─── Golden Navigational Chart Sunbeam / Shimmer ─── */}
+          <rect x="0" y="0" width="800" height="35" fill="url(#scanLine)">
             <animateTransform
               attributeName="transform"
               type="translate"
               values="0 -40; 0 600"
-              dur="6s"
+              dur="8s"
               repeatCount="indefinite"
             />
           </rect>
 
-          {/* ─── Storms ─── */}
-          {storms.map((storm) => (
-            <g
-              key={storm.id}
-              className="cursor-grab active:cursor-grabbing"
-              onMouseDown={() => handleMouseDown(storm.id)}
-            >
-              {/* Danger zone fill */}
-              <circle
-                cx={storm.x}
-                cy={storm.y}
-                r={storm.radius + 15}
-                fill="url(#stormGlow)"
-                stroke="#ef4444"
-                strokeWidth="0.5"
-                strokeOpacity="0.15"
-                strokeDasharray="4 4"
-              />
-              {/* Pulsing outer ring */}
-              <circle
-                cx={storm.x}
-                cy={storm.y}
-                r={storm.radius}
-                fill="none"
-                stroke="#ef4444"
-                strokeWidth="1.5"
-                strokeOpacity="0.5"
+          {/* ─── Storms & Sea Monsters ─── */}
+          {storms.map((storm) => {
+            const isMonster =
+              storm.type === 'monster' ||
+              storm.id.includes('monster') ||
+              storm.name.toLowerCase().includes('kraken') ||
+              storm.name.toLowerCase().includes('maw');
+            const hazardImg = storm.image || (isMonster ? '/deep_sea_monster.png' : '/cyclone.png');
+            const glowId = isMonster ? 'monsterGlow' : 'stormGlow';
+            const themeColor = isMonster ? '#c084fc' : '#ef4444';
+            const borderColor = isMonster ? '#a855f7' : '#ef4444';
+
+            return (
+              <g
+                key={storm.id}
+                className="cursor-grab active:cursor-grabbing touch-none select-none"
+                onPointerDown={(e) => handleHazardPointerDown(storm.id, e)}
               >
-                <animate
-                  attributeName="r"
-                  values={`${storm.radius};${storm.radius + 8};${storm.radius}`}
-                  dur="2.5s"
-                  repeatCount="indefinite"
-                />
-                <animate
-                  attributeName="stroke-opacity"
-                  values="0.5;0.15;0.5"
-                  dur="2.5s"
-                  repeatCount="indefinite"
-                />
-              </circle>
-              {/* Inner core */}
-              <circle
-                cx={storm.x}
-                cy={storm.y}
-                r={12}
-                fill="#ef4444"
-                fillOpacity="0.2"
-                stroke="#ef4444"
-                strokeWidth="1"
-                strokeOpacity="0.6"
-              >
-                <animate
-                  attributeName="r"
-                  values="10;14;10"
-                  dur="1.8s"
-                  repeatCount="indefinite"
-                />
-              </circle>
-              {/* Swirl lines */}
-              {[0, 90, 180, 270].map((angle) => (
-                <line
-                  key={angle}
-                  x1={storm.x}
-                  y1={storm.y}
-                  x2={storm.x + Math.cos((angle * Math.PI) / 180) * (storm.radius * 0.6)}
-                  y2={storm.y + Math.sin((angle * Math.PI) / 180) * (storm.radius * 0.6)}
-                  stroke="#ef4444"
+                {/* 1. Danger zone radial glow fill */}
+                <circle
+                  cx={storm.x}
+                  cy={storm.y}
+                  r={storm.radius + 15}
+                  fill={`url(#${glowId})`}
+                  stroke={borderColor}
                   strokeWidth="0.8"
-                  strokeOpacity="0.3"
-                  strokeDasharray="3 5"
+                  strokeOpacity="0.25"
+                  strokeDasharray="4 4"
+                />
+
+                {/* 2. Pulsing outer hazard perimeter */}
+                <circle
+                  cx={storm.x}
+                  cy={storm.y}
+                  r={storm.radius}
+                  fill="none"
+                  stroke={borderColor}
+                  strokeWidth="1.6"
+                  strokeOpacity="0.65"
+                  strokeDasharray={isMonster ? '6 4' : '8 3'}
                 >
-                  <animateTransform
-                    attributeName="transform"
-                    type="rotate"
-                    from={`${angle} ${storm.x} ${storm.y}`}
-                    to={`${angle + 360} ${storm.x} ${storm.y}`}
-                    dur="8s"
+                  <animate
+                    attributeName="r"
+                    values={`${storm.radius};${storm.radius + 6};${storm.radius}`}
+                    dur="2.5s"
                     repeatCount="indefinite"
                   />
-                </line>
-              ))}
-              {/* Storm label */}
-              <text
-                x={storm.x}
-                y={storm.y - storm.radius - 10}
-                textAnchor="middle"
-                className="text-[9px] font-mono uppercase tracking-wider"
-                fill="#ef4444"
-                fillOpacity="0.7"
-              >
-                ⚠ {storm.name}
-              </text>
-              <text
-                x={storm.x}
-                y={storm.y - storm.radius + 2}
-                textAnchor="middle"
-                className="text-[7px] font-mono"
-                fill="#fca5a5"
-                fillOpacity="0.4"
-              >
-                R:{storm.radius}px • CAT-5
-              </text>
-            </g>
-          ))}
+                  <animate
+                    attributeName="stroke-opacity"
+                    values="0.65;0.25;0.65"
+                    dur="2.5s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+
+                {/* 3. Deep water disturbance shadow */}
+                <ellipse
+                  cx={storm.x}
+                  cy={storm.y + 10}
+                  rx={storm.radius * 0.75}
+                  ry={storm.radius * 0.4}
+                  fill="#030712"
+                  fillOpacity="0.6"
+                  className="pointer-events-none"
+                />
+
+                {/* 4. Hazard Visual Sprite Artwork */}
+                <g transform={`translate(${storm.x}, ${storm.y})`}>
+                  {isMonster ? (
+                    // Deep Sea Kraken: Tentacles emerging with gentle breathing sway
+                    <g>
+                      <animateTransform
+                        attributeName="transform"
+                        type="translate"
+                        values="0 -4; 0 4; 0 -4"
+                        dur="3.2s"
+                        repeatCount="indefinite"
+                      />
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        values="-2; 2; -2"
+                        dur="5s"
+                        repeatCount="indefinite"
+                        additive="sum"
+                      />
+                      <image
+                        href={hazardImg}
+                        x={-storm.radius * 0.9}
+                        y={-storm.radius * 0.9}
+                        width={storm.radius * 1.8}
+                        height={storm.radius * 1.8}
+                        preserveAspectRatio="xMidYMid meet"
+                        className="pointer-events-none filter drop-shadow-[0_8px_20px_rgba(147,51,234,0.6)]"
+                      />
+                    </g>
+                  ) : (
+                    // Category-5 Cyclone: Continuously spinning hurricane vortex
+                    <g>
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0"
+                        to="360"
+                        dur="14s"
+                        repeatCount="indefinite"
+                      />
+                      <image
+                        href={hazardImg}
+                        x={-storm.radius * 0.95}
+                        y={-storm.radius * 0.95}
+                        width={storm.radius * 1.9}
+                        height={storm.radius * 1.9}
+                        preserveAspectRatio="xMidYMid meet"
+                        className="pointer-events-none filter drop-shadow-[0_8px_24px_rgba(239,68,68,0.55)]"
+                      />
+                    </g>
+                  )}
+                </g>
+
+                {/* 5. Warning Label & Hazard Classification Tag */}
+                <rect
+                  x={storm.x - 65}
+                  y={storm.y - storm.radius - 22}
+                  width={130}
+                  height={14}
+                  rx={3}
+                  fill="#090d16"
+                  fillOpacity="0.88"
+                  stroke={borderColor}
+                  strokeWidth="0.8"
+                />
+                <text
+                  x={storm.x}
+                  y={storm.y - storm.radius - 12}
+                  textAnchor="middle"
+                  className="text-[8px] font-mono uppercase tracking-wider font-bold"
+                  fill={themeColor}
+                >
+                  {storm.name}
+                </text>
+                <text
+                  x={storm.x}
+                  y={storm.y - storm.radius - 2}
+                  textAnchor="middle"
+                  className="text-[7px] font-mono"
+                  fill={isMonster ? '#e9d5ff' : '#fca5a5'}
+                  fillOpacity="0.75"
+                >
+                  R:{storm.radius}px • {isMonster ? 'APEX HAZARD' : 'CAT-5 VORTEX'}
+                </text>
+              </g>
+            );
+          })}
 
           {/* ─── Islands (Voyage Constraint 3: 3 Distinct Lifecycle States) ─── */}
           {islands.map((island) => {
@@ -310,6 +424,16 @@ export default function RadarCanvas({
             const isClickable =
               isManualDispatchMode && selectedShipId && lifecycle !== 'evacuated';
 
+            const islandImg =
+              island.image ||
+              (island.name.includes('Skull')
+                ? '/pirate_skull_island.png'
+                : island.name.includes('Tortuga')
+                ? '/tortuga_island.png'
+                : island.name.includes('Siren')
+                ? '/siren_island.png'
+                : '/razor_reef.png');
+
             return (
               <g
                 key={island.id}
@@ -320,31 +444,94 @@ export default function RadarCanvas({
                   }
                 }}
               >
-                {/* 1. EVACUATED STATE */}
+                {/* 1. Shallow Lagoon Reef Water Aura & Ripple */}
+                <ellipse
+                  cx={island.x}
+                  cy={island.y + 12}
+                  rx={36}
+                  ry={14}
+                  fill={lifecycle === 'evacuated' ? '#064e3b' : '#0284c7'}
+                  fillOpacity="0.28"
+                  className="pointer-events-none"
+                />
+                <ellipse
+                  cx={island.x}
+                  cy={island.y + 12}
+                  rx={38}
+                  ry={15}
+                  fill="none"
+                  stroke={lifecycle === 'evacuated' ? '#34d399' : '#38bdf8'}
+                  strokeWidth="0.8"
+                >
+                  <animate
+                    attributeName="rx"
+                    values="34;44;34"
+                    dur="3.5s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="ry"
+                    values="13;18;13"
+                    dur="3.5s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="stroke-opacity"
+                    values="0.35;0.05;0.35"
+                    dur="3.5s"
+                    repeatCount="indefinite"
+                  />
+                </ellipse>
+
+                {/* 2. 2.5D Isometric Island Sprite Image */}
+                <image
+                  href={islandImg}
+                  x={island.x - 38}
+                  y={island.y - 36}
+                  width={76}
+                  height={66}
+                  preserveAspectRatio="xMidYMid meet"
+                  className="pointer-events-none filter drop-shadow-[0_8px_18px_rgba(0,0,0,0.85)]"
+                />
+
+                {/* 3. LIFECYCLE STATE OVERLAYS */}
+
+                {/* ─── A. EVACUATED STATE ─── */}
                 {lifecycle === 'evacuated' && (
                   <>
-                    <circle cx={island.x} cy={island.y} r={32} fill="url(#glow-evacuated)" />
+                    <circle cx={island.x} cy={island.y + 4} r={36} fill="url(#glow-evacuated)" />
                     <circle
                       cx={island.x}
-                      cy={island.y}
-                      r={18}
-                      fill="#064e3b33"
+                      cy={island.y + 4}
+                      r={26}
+                      fill="none"
                       stroke="#10b981"
                       strokeWidth="1.5"
+                      strokeDasharray="3 3"
                       strokeOpacity="0.8"
+                    />
+                    {/* Secured Checkmark Shield */}
+                    <circle
+                      cx={island.x}
+                      cy={island.y - 20}
+                      r={9}
+                      fill="#064e3b"
+                      stroke="#10b981"
+                      strokeWidth="1.5"
                     />
                     <text
                       x={island.x}
-                      y={island.y + 4}
+                      y={island.y - 16}
                       textAnchor="middle"
-                      className="text-[12px] font-bold"
+                      className="text-[10px] font-bold"
                       fill="#34d399"
                     >
                       ✓
                     </text>
+                    {/* Island Name */}
                     <text
                       x={island.x}
-                      y={island.y + 28}
+                      y={island.y + 34}
                       textAnchor="middle"
                       className="text-[9px] font-semibold"
                       fill="#34d399"
@@ -353,18 +540,18 @@ export default function RadarCanvas({
                     </text>
                     {/* Status tag: SAFE (0 STRANDED) */}
                     <rect
-                      x={island.x - 38}
-                      y={island.y + 32}
-                      width={76}
+                      x={island.x - 42}
+                      y={island.y + 38}
+                      width={84}
                       height={12}
                       rx={2}
-                      fill="#064e3b44"
+                      fill="#064e3b55"
                       stroke="#10b981"
                       strokeWidth="0.8"
                     />
                     <text
                       x={island.x}
-                      y={island.y + 41}
+                      y={island.y + 47}
                       textAnchor="middle"
                       className="text-[7.5px] font-mono font-bold"
                       fill="#34d399"
@@ -374,15 +561,15 @@ export default function RadarCanvas({
                   </>
                 )}
 
-                {/* 2. IN-PROGRESS STATE */}
+                {/* ─── B. IN-PROGRESS STATE ─── */}
                 {lifecycle === 'in-progress' && (
                   <>
-                    <circle cx={island.x} cy={island.y} r={32} fill={`url(#glow-${island.triage})`} />
-                    {/* Rotating blue dashed perimeter ring */}
+                    <circle cx={island.x} cy={island.y + 4} r={38} fill={`url(#glow-${island.triage})`} />
+                    {/* Rotating blue dashed tactical perimeter ring */}
                     <circle
                       cx={island.x}
-                      cy={island.y}
-                      r={24}
+                      cy={island.y + 4}
+                      r={30}
                       fill="none"
                       stroke="#38bdf8"
                       strokeWidth="1.8"
@@ -391,31 +578,34 @@ export default function RadarCanvas({
                       <animateTransform
                         attributeName="transform"
                         type="rotate"
-                        from={`0 ${island.x} ${island.y}`}
-                        to={`360 ${island.x} ${island.y}`}
+                        from={`0 ${island.x} ${island.y + 4}`}
+                        to={`360 ${island.x} ${island.y + 4}`}
                         dur="5s"
                         repeatCount="indefinite"
                       />
                     </circle>
-                    {/* Reef hex */}
-                    <polygon
-                      points={hexPoints(island.x, island.y, 14)}
-                      fill="#0f1a2e"
+                    {/* Rescue Anchor Badge */}
+                    <circle
+                      cx={island.x}
+                      cy={island.y - 20}
+                      r={8}
+                      fill="#0284c7"
                       stroke="#38bdf8"
                       strokeWidth="1.5"
                     />
                     <text
                       x={island.x}
-                      y={island.y + 4}
+                      y={island.y - 16}
                       textAnchor="middle"
-                      className="text-[11px]"
-                      fill="#38bdf8"
+                      className="text-[9px]"
+                      fill="#ffffff"
                     >
-                      🏝
+                      ⚓
                     </text>
+                    {/* Island Name */}
                     <text
                       x={island.x}
-                      y={island.y + 28}
+                      y={island.y + 34}
                       textAnchor="middle"
                       className="text-[9px] font-semibold"
                       fill="#38bdf8"
@@ -424,18 +614,18 @@ export default function RadarCanvas({
                     </text>
                     {/* Status tag: RESCUE IN TRANSIT */}
                     <rect
-                      x={island.x - 44}
-                      y={island.y + 32}
-                      width={88}
+                      x={island.x - 46}
+                      y={island.y + 38}
+                      width={92}
                       height={13}
                       rx={2}
-                      fill="#0284c733"
+                      fill="#0284c744"
                       stroke="#38bdf8"
                       strokeWidth="0.8"
                     />
                     <text
                       x={island.x}
-                      y={island.y + 42}
+                      y={island.y + 48}
                       textAnchor="middle"
                       className="text-[7.5px] font-mono font-bold uppercase tracking-wider"
                       fill="#7dd3fc"
@@ -444,18 +634,18 @@ export default function RadarCanvas({
                     </text>
                     {/* Remaining badge */}
                     <rect
-                      x={island.x + 14}
-                      y={island.y - 22}
+                      x={island.x + 18}
+                      y={island.y - 28}
                       width={38}
                       height={12}
                       rx={2}
-                      fill="#0369a144"
+                      fill="#0369a166"
                       stroke="#38bdf8"
                       strokeWidth="0.7"
                     />
                     <text
-                      x={island.x + 33}
-                      y={island.y - 13}
+                      x={island.x + 37}
+                      y={island.y - 19}
                       textAnchor="middle"
                       className="text-[7px] font-mono font-bold"
                       fill="#38bdf8"
@@ -465,18 +655,18 @@ export default function RadarCanvas({
                   </>
                 )}
 
-                {/* 3. PENDING STATE */}
+                {/* ─── C. PENDING STATE ─── */}
                 {lifecycle === 'pending' && (
                   <>
-                    <circle cx={island.x} cy={island.y} r={32} fill={`url(#glow-${island.triage})`} />
-                    {/* Pulsing amber border */}
+                    <circle cx={island.x} cy={island.y + 4} r={38} fill={`url(#glow-${island.triage})`} />
+                    {/* Pulsing triage color border */}
                     <circle
                       cx={island.x}
-                      cy={island.y}
-                      r={22}
+                      cy={island.y + 4}
+                      r={28}
                       fill="none"
-                      stroke="#f59e0b"
-                      strokeWidth="1.5"
+                      stroke={tc.border}
+                      strokeWidth="1.6"
                     >
                       <animate
                         attributeName="stroke-opacity"
@@ -486,30 +676,15 @@ export default function RadarCanvas({
                       />
                       <animate
                         attributeName="r"
-                        values="21;24;21"
+                        values="26;30;26"
                         dur="1.8s"
                         repeatCount="indefinite"
                       />
                     </circle>
-                    {/* Reef hex */}
-                    <polygon
-                      points={hexPoints(island.x, island.y, 14)}
-                      fill="#0f1a2e"
-                      stroke={tc.border}
-                      strokeWidth="1.5"
-                    />
+                    {/* Island Name */}
                     <text
                       x={island.x}
-                      y={island.y + 4}
-                      textAnchor="middle"
-                      className="text-[11px]"
-                      fill={tc.text}
-                    >
-                      🏝
-                    </text>
-                    <text
-                      x={island.x}
-                      y={island.y + 28}
+                      y={island.y + 34}
                       textAnchor="middle"
                       className="text-[9px] font-semibold"
                       fill={tc.text}
@@ -518,9 +693,9 @@ export default function RadarCanvas({
                     </text>
                     {/* Survivor headcount badge highlighted */}
                     <rect
-                      x={island.x - 20}
-                      y={island.y + 31}
-                      width={40}
+                      x={island.x - 36}
+                      y={island.y + 38}
+                      width={72}
                       height={13}
                       rx={3}
                       fill={tc.bg}
@@ -530,28 +705,28 @@ export default function RadarCanvas({
                     />
                     <text
                       x={island.x}
-                      y={island.y + 41}
+                      y={island.y + 48}
                       textAnchor="middle"
-                      className="text-[8px] font-mono font-bold"
+                      className="text-[7.5px] font-mono font-bold tracking-wider"
                       fill={tc.text}
                     >
-                      👥 {remaining} left
+                      {remaining} STRANDED
                     </text>
                     {/* Triage tag */}
                     <rect
-                      x={island.x + 14}
-                      y={island.y - 22}
+                      x={island.x + 18}
+                      y={island.y - 28}
                       width={island.triage.length * 5.5 + 8}
                       height={12}
                       rx={2}
                       fill={tc.bg}
-                      fillOpacity="0.25"
+                      fillOpacity="0.3"
                       stroke={tc.border}
                       strokeWidth="0.6"
                     />
                     <text
-                      x={island.x + 18}
-                      y={island.y - 13}
+                      x={island.x + 22}
+                      y={island.y - 19}
                       className="text-[7px] font-mono font-bold uppercase"
                       fill={tc.text}
                     >
@@ -563,7 +738,7 @@ export default function RadarCanvas({
                       <g>
                         <rect
                           x={island.x - 48}
-                          y={island.y - 22}
+                          y={island.y - 28}
                           width={42}
                           height={12}
                           rx={2}
@@ -573,7 +748,7 @@ export default function RadarCanvas({
                         />
                         <text
                           x={island.x - 27}
-                          y={island.y - 13}
+                          y={island.y - 19}
                           textAnchor="middle"
                           className="text-[7px] font-mono font-bold"
                           fill="#fbbf24"
@@ -585,18 +760,52 @@ export default function RadarCanvas({
                   </>
                 )}
 
-                {/* Manual Dispatch Target Reticle on hover/clickable */}
+                {/* ─── D. MANUAL DISPATCH RETICLE CROSSHAIR ─── */}
                 {isClickable && (
-                  <circle
-                    cx={island.x}
-                    cy={island.y}
-                    r={34}
-                    fill="none"
-                    stroke="#fbbf24"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 3"
-                    className="animate-pulse"
-                  />
+                  <g>
+                    <circle
+                      cx={island.x}
+                      cy={island.y + 4}
+                      r={38}
+                      fill="none"
+                      stroke="#fbbf24"
+                      strokeWidth="2"
+                      strokeDasharray="5 3"
+                      className="animate-pulse"
+                    />
+                    <line
+                      x1={island.x - 44}
+                      y1={island.y + 4}
+                      x2={island.x - 28}
+                      y2={island.y + 4}
+                      stroke="#fbbf24"
+                      strokeWidth="2"
+                    />
+                    <line
+                      x1={island.x + 28}
+                      y1={island.y + 4}
+                      x2={island.x + 44}
+                      y2={island.y + 4}
+                      stroke="#fbbf24"
+                      strokeWidth="2"
+                    />
+                    <line
+                      x1={island.x}
+                      y1={island.y - 40}
+                      x2={island.x}
+                      y2={island.y - 24}
+                      stroke="#fbbf24"
+                      strokeWidth="2"
+                    />
+                    <line
+                      x1={island.x}
+                      y1={island.y + 32}
+                      x2={island.x}
+                      y2={island.y + 48}
+                      stroke="#fbbf24"
+                      strokeWidth="2"
+                    />
+                  </g>
                 )}
               </g>
             );
@@ -1016,12 +1225,4 @@ export default function RadarCanvas({
       </div>
     </div>
   );
-}
-
-// ─── Geometry Helpers ───
-function hexPoints(cx: number, cy: number, r: number): string {
-  return Array.from({ length: 6 }, (_, i) => {
-    const angle = (Math.PI / 3) * i - Math.PI / 6;
-    return `${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`;
-  }).join(' ');
 }

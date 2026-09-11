@@ -53,13 +53,13 @@ export function solveDispatchPlan(
 
   logs.push({
     timestamp: ts(),
-    message: `📊 Urgency scoring complete. Priority order:`,
+    message: `[ALGORITHM] Urgency scoring complete. Evaluated ${scored.length} unevacuated atolls:`,
     type: 'info',
   });
   scored.forEach((isl, i) => {
     logs.push({
       timestamp: ts(),
-      message: `   #${i + 1} ${isl.name} — P=${isl.urgencyIndex.toFixed(1)} (${isl.triage}, ${isl.survivors - isl.rescued} remaining)`,
+      message: `   #${i + 1} ${isl.name} — Priority=${isl.urgencyIndex.toFixed(1)} (${isl.triage} Triage, ${isl.survivors - isl.rescued} castaways remaining)`,
       type: isl.triage === 'Critical' ? 'critical' : isl.triage === 'Urgent' ? 'warning' : 'info',
     });
   });
@@ -73,13 +73,15 @@ export function solveDispatchPlan(
 
   const islandWork = scored.map((isl) => ({
     ...isl,
-    unassigned: isl.survivors - isl.rescued,
+    unassigned: Math.max(0, isl.survivors - isl.rescued),
   }));
 
   const assignments: DispatchAssignment[] = [];
 
   // ─── 3. Greedy matching ───
   for (const island of islandWork) {
+    if (island.unassigned <= 0) continue;
+
     while (island.unassigned > 0) {
       // Find best available ship
       let bestShip: (typeof shipWork)[number] | null = null;
@@ -109,7 +111,7 @@ export function solveDispatchPlan(
       if (!bestShip) {
         logs.push({
           timestamp: ts(),
-          message: `⚠ No available cutters for ${island.name} — ${island.unassigned} souls remain unassigned.`,
+          message: `[CAPACITY EXHAUSTED] No available cutters for ${island.name} — ${island.unassigned} castaways remain in queue.`,
           type: 'warning',
         });
         break;
@@ -131,7 +133,7 @@ export function solveDispatchPlan(
 
       logs.push({
         timestamp: ts(),
-        message: `🚢 ${bestShip.name} → ${island.name} | ${passengersToLoad} pax | ${bestDist.toFixed(0)}px via A* (${bestPath.length} waypoints)`,
+        message: `[PASSAGE DECREED] ${bestShip.name} → ${island.name} | ${passengersToLoad} souls | ${bestDist.toFixed(0)} NM via A* (${bestPath.length} waypoints)`,
         type: 'success',
       });
     }
@@ -160,7 +162,7 @@ export function solveDispatchPlan(
 
   logs.push({
     timestamp: ts(),
-    message: `✅ Dispatch plan complete: ${assignments.length} routes computed. ${assignments.reduce((s, a) => s + a.passengersToLoad, 0)} souls targeted for extraction.`,
+    message: `[DISPATCH PLAN COMPLETE] ${assignments.length} optimal routes computed. ${assignments.reduce((s, a) => s + a.passengersToLoad, 0)} souls scheduled for extraction.`,
     type: 'success',
   });
 

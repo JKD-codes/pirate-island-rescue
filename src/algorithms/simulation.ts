@@ -197,6 +197,57 @@ export function stepSimulation(
 
       const targetIsland = nextIslands.find((i) => i.id === ship.targetIslandId);
 
+      // ─── VOYAGE CONSTRAINT: Never visit an already liberated / safe atoll! ───
+      const remainingOnTarget = targetIsland ? targetIsland.survivors - targetIsland.rescued : 0;
+      if (!targetIsland || remainingOnTarget <= 0) {
+        // Target atoll is already safe (0 stranded)! Immediately divert cutter to next needy atoll or return to port!
+        const availableCap = ship.capacity - ship.load;
+        const otherUnevacuated = nextIslands
+          .filter((i) => (i.survivors - i.rescued) > 0)
+          .map((i) => ({
+            ...i,
+            urgency: calculateUrgencyIndex(i, nextStorms),
+            dist: Math.hypot(ship.x - i.x, ship.y - i.y),
+          }))
+          .sort((a, b) => b.urgency - a.urgency || a.dist - b.dist);
+
+        if (availableCap > 0 && otherUnevacuated.length > 0) {
+          const nextTarget = otherUnevacuated[0];
+          const newPath = runAStar(
+            { x: ship.x, y: ship.y },
+            { x: nextTarget.x, y: nextTarget.y },
+            nextStorms
+          );
+          ship.targetIslandId = nextTarget.id;
+          ship.path = newPath;
+          ship.pathIndex = 1;
+          ship.status = 'en-route';
+          logs.push({
+            timestamp: timestamp(),
+            message: `[DYNAMIC RE-ROUTE] ${targetIsland?.name || 'Previous atoll'} is already safe! ${ship.name} diverted course to ${nextTarget.name} (${nextTarget.survivors - nextTarget.rescued} castaways).`,
+            type: 'warning',
+          });
+          continue;
+        } else {
+          // No more atolls need rescue or vessel holds full capacity: return to home base!
+          const returnPath = runAStar(
+            { x: ship.x, y: ship.y },
+            { x: ship.startX, y: ship.startY },
+            nextStorms
+          );
+          ship.path = returnPath;
+          ship.pathIndex = 1;
+          ship.status = 'returning';
+          ship.targetIslandId = null;
+          logs.push({
+            timestamp: timestamp(),
+            message: `[MISSION UPDATE] ${targetIsland?.name || 'Target'} is liberated. ${ship.name} returning to home anchorage with ${ship.load} souls aboard.`,
+            type: ship.load > 0 ? 'success' : 'info',
+          });
+          continue;
+        }
+      }
+
       // Check if target atoll is currently engulfed by a storm vortex
       if (targetIsland) {
         const islandStorm = getEngulfingStorm(
@@ -210,7 +261,7 @@ export function stepSimulation(
             ship.status = 'holding';
             logs.push({
               timestamp: timestamp(),
-              message: `⚠️ [STORM SHELTER] ${islandStorm.name} is directly over ${targetIsland.name}! ${ship.name} heaved-to in open water — waiting for storm to pass.`,
+              message: `[STORM SHELTER] ${islandStorm.name} is directly over ${targetIsland.name}! ${ship.name} heaved-to in open water — waiting for storm to pass.`,
               type: 'warning',
             });
             continue;
@@ -240,7 +291,7 @@ export function stepSimulation(
           ship.pathIndex = 1;
           logs.push({
             timestamp: timestamp(),
-            message: `⚡ ${ship.name} plotted evasive bypass around roaming ${wpStorm.name}.`,
+            message: `[HAZARD AVOIDANCE] ${ship.name} plotted evasive bypass around roaming ${wpStorm.name}.`,
             type: 'info',
           });
         } else {
@@ -248,7 +299,7 @@ export function stepSimulation(
           ship.status = 'holding';
           logs.push({
             timestamp: timestamp(),
-            message: `⚠️ [HAZARD HOLD] ${ship.name} heaved to — passage blocked by ${wpStorm.name}. Awaiting clear water.`,
+            message: `[HAZARD HOLD] ${ship.name} heaved to — passage blocked by ${wpStorm.name}. Awaiting clear water.`,
             type: 'warning',
           });
           continue;
@@ -279,7 +330,7 @@ export function stepSimulation(
               ship.status = 'holding';
               logs.push({
                 timestamp: timestamp(),
-                message: `⚠️ [STORM OVER ATOLL] ${ship.name} reached ${targetIsland.name}, but ${currentIslandStorm.name} is overhead! Heaved-to until gale passes.`,
+                message: `[STORM OVER ATOLL] ${ship.name} reached ${targetIsland.name}, but ${currentIslandStorm.name} is overhead! Heaved-to until gale passes.`,
                 type: 'warning',
               });
               continue;
@@ -293,33 +344,80 @@ export function stepSimulation(
             targetIsland.rescued += take;
             ship.load += take;
 
-            const islandNowCleared = targetIsland.survivors - targetIsland.rescued <= 0;
+            const islandNowCleared = (targetIsland.survivors - targetIsland.rescued) <= 0;
             if (islandNowCleared) {
               logs.push({
                 timestamp: timestamp(),
-                message: `🔔 [EVACUATED] ${targetIsland.name} 100% evacuated! All pirate souls secured.`,
+                message: `[LIBERATED] ${targetIsland.name} 100% evacuated! All pirate souls secured.`,
                 type: 'success',
               });
+
+              // Instantly alert and divert any other ships currently heading toward this now-cleared atoll!
+              for (const otherShip of nextShips) {
+                if (
+                  otherShip.id !== ship.id &&
+                  otherShip.targetIslandId === targetIsland.id &&
+                  otherShip.status === 'en-route'
+                ) {
+                  const otherCap = otherShip.capacity - otherShip.load;
+                  const needyAtolls = nextIslands
+                    .filter((i) => i.id !== targetIsland.id && (i.survivors - i.rescued) > 0)
+                    .map((i) => ({ ...i, urgency: calculateUrgencyIndex(i, nextStorms) }))
+                    .sort((a, b) => b.urgency - a.urgency);
+
+                  if (otherCap > 0 && needyAtolls.length > 0) {
+                    const divertTarget = needyAtolls[0];
+                    otherShip.targetIslandId = divertTarget.id;
+                    otherShip.path = runAStar(
+                      { x: otherShip.x, y: otherShip.y },
+                      { x: divertTarget.x, y: divertTarget.y },
+                      nextStorms
+                    );
+                    otherShip.pathIndex = 1;
+                    logs.push({
+                      timestamp: timestamp(),
+                      message: `[DISPATCH DIVERT] ${targetIsland.name} fully cleared! ${otherShip.name} immediately diverted to ${divertTarget.name}.`,
+                      type: 'warning',
+                    });
+                  } else {
+                    otherShip.targetIslandId = null;
+                    otherShip.path = runAStar(
+                      { x: otherShip.x, y: otherShip.y },
+                      { x: otherShip.startX, y: otherShip.startY },
+                      nextStorms
+                    );
+                    otherShip.pathIndex = 1;
+                    otherShip.status = 'returning';
+                    logs.push({
+                      timestamp: timestamp(),
+                      message: `[MISSION UPDATE] ${targetIsland.name} cleared. ${otherShip.name} stood down and returned to port.`,
+                      type: 'info',
+                    });
+                  }
+                }
+              }
             }
 
-            logs.push({
-              timestamp: timestamp(),
-              message: `⚓ ${ship.name} made landfall at ${targetIsland.name}. Loaded ${take} castaways (${targetIsland.survivors - targetIsland.rescued} remain).`,
-              type: 'info',
-            });
+            if (take > 0) {
+              logs.push({
+                timestamp: timestamp(),
+                message: `${ship.name} made landfall at ${targetIsland.name}. Loaded ${take} castaways (${targetIsland.survivors - targetIsland.rescued} remain).`,
+                type: 'info',
+              });
+            }
 
             const remainingCap = ship.capacity - ship.load;
 
             // If cutter still has surplus capacity and another atoll is in need:
             const otherUnevacuated = nextIslands
-              .filter((i) => i.id !== targetIsland.id && i.survivors - i.rescued > 0)
+              .filter((i) => i.id !== targetIsland.id && (i.survivors - i.rescued) > 0)
               .map((i) => ({
                 ...i,
                 urgency: calculateUrgencyIndex(i, nextStorms),
               }))
               .sort((a, b) => b.urgency - a.urgency);
 
-            if (remainingCap >= 10 && otherUnevacuated.length > 0) {
+            if (remainingCap >= 5 && otherUnevacuated.length > 0) {
               const nextTarget = otherUnevacuated[0];
               const nextRoute = runAStar(
                 { x: ship.x, y: ship.y },
@@ -334,7 +432,7 @@ export function stepSimulation(
 
               logs.push({
                 timestamp: timestamp(),
-                message: `➡ ${ship.name} has ${remainingCap} berths free! Continuing rescue course to ${nextTarget.name}.`,
+                message: `${ship.name} has ${remainingCap} berths free! Continuing rescue course to ${nextTarget.name}.`,
                 type: 'warning',
               });
             } else {
@@ -348,10 +446,11 @@ export function stepSimulation(
               ship.path = returnPath;
               ship.pathIndex = 1;
               ship.status = 'returning';
+              ship.targetIslandId = null;
 
               logs.push({
                 timestamp: timestamp(),
-                message: `🔄 ${ship.name} ${remainingCap === 0 ? '[CAPACITY FULL]' : '[LEG COMPLETE]'} — returning to home harbor with ${ship.load} souls.`,
+                message: `${ship.name} ${remainingCap === 0 ? '[HOLD FULL]' : '[LEG COMPLETE]'} — returning to home harbor with ${ship.load} souls.`,
                 type: 'info',
               });
             }

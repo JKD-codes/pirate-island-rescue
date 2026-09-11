@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Ship as ShipIcon, Users, Compass, Navigation, X, Check } from 'lucide-react';
+import { useState } from 'react';
+import { Ship as ShipIcon, Users, Compass, X, Check, ScrollText, MapPin, Coins, ShieldCheck } from 'lucide-react';
 import type { Ship, Island, Storm } from '../types';
 import { runAStar, pathDistance } from '../algorithms/astar';
 import { SHIP_COLORS, TRIAGE_COLORS } from '../data/entities';
@@ -21,17 +21,13 @@ export default function ManualDispatchModal({
   onConfirm,
   onClose,
 }: ManualDispatchModalProps) {
-  const [castaways, setCastaways] = useState(1);
+  const [userSelectedCastaways, setUserSelectedCastaways] = useState<number | null>(null);
 
   const availableCap = ship ? ship.capacity - ship.load : 0;
   const remainingSurvivors = island ? island.survivors - island.rescued : 0;
   const maxBoard = Math.max(1, Math.min(remainingSurvivors, availableCap));
-
-  useEffect(() => {
-    if (isOpen) {
-      setCastaways(maxBoard);
-    }
-  }, [isOpen, maxBoard]);
+  const castaways = userSelectedCastaways !== null ? Math.min(userSelectedCastaways, maxBoard) : maxBoard;
+  const isIslandSafe = remainingSurvivors <= 0;
 
   if (!isOpen || !ship || !island) return null;
 
@@ -44,118 +40,172 @@ export default function ManualDispatchModal({
   const tc = TRIAGE_COLORS[island.triage];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="w-full max-w-md bg-[#0b1329] border border-amber-500/40 rounded-lg shadow-[0_0_50px_rgba(245,158,11,0.15)] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fade-in font-heading">
+      <div className="w-full max-w-md bg-gradient-to-b from-[#1e130a] via-[#160d06] to-[#100804] border-2 border-[#d4af37] rounded-xl shadow-[0_0_60px_rgba(0,0,0,0.95)] overflow-hidden ring-4 ring-[#2c1808]">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/80">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#8b5a2b] bg-[#24150b]">
           <div className="flex items-center gap-2">
-            <Navigation size={16} className="text-amber-400" />
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-amber-200">
-              Manual Tactical Dispatch Order
+            <ScrollText size={16} className="text-[#d4af37]" />
+            <span className="text-xs font-heading font-extrabold uppercase tracking-widest text-[#f3e5ab]">
+              Royal Charter & Passage Order
             </span>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 p-1 rounded transition-colors"
+            className="text-[#c89b3c] hover:text-amber-200 p-1 rounded transition-colors cursor-pointer"
           >
             <X size={16} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4 font-mono text-xs">
+        <div className="p-5 space-y-4 text-xs">
+          {/* Liberated Island Warning Alert */}
+          {isIslandSafe && (
+            <div className="bg-[#0b1f14] border border-[#10b981]/60 rounded-lg p-3 flex items-center gap-2.5 text-emerald-300 shadow">
+              <ShieldCheck size={18} className="text-emerald-400 shrink-0" />
+              <div>
+                <p className="font-bold uppercase tracking-wider text-[10.5px]">
+                  Atoll Fully Liberated
+                </p>
+                <p className="text-[10px] text-[#a7f3d0]/80 font-parchment leading-tight mt-0.5">
+                  All castaways have already been safely rescued from {island.name}. No rescue voyage required.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Ship & Island summary */}
           <div className="grid grid-cols-2 gap-3">
             {/* Vessel Card */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-md p-2.5">
-              <div className="flex items-center gap-1.5 text-slate-400 text-[10px] uppercase mb-1">
-                <ShipIcon size={12} style={{ color: shipColor }} />
-                <span>Assigned Cutter</span>
+            <div className="bg-[#120a05] border border-[#6b4423] rounded-lg p-3 flex items-center gap-2.5 shadow-inner">
+              <div className="w-11 h-11 rounded-md bg-[#0a0502] border border-[#d4af37]/70 flex items-center justify-center overflow-hidden p-0.5 shrink-0 shadow">
+                <img
+                  src={ship.image || '/boat_1.png'}
+                  alt={ship.name}
+                  className="w-full h-full object-contain drop-shadow"
+                />
               </div>
-              <p className="font-bold text-slate-200 text-[11px] truncate">{ship.name}</p>
-              <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                <span>Free Berths:</span>
-                <span className="text-sky-300 font-bold">{availableCap} pax</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1 text-[#c89b3c]/80 text-[9.5px] uppercase mb-0.5 font-bold">
+                  <ShipIcon size={11} style={{ color: shipColor }} />
+                  <span>Cutter</span>
+                </div>
+                <p className="font-extrabold text-[#f3e5ab] text-[11.5px] truncate">{ship.name}</p>
+                <div className="flex justify-between text-[9.5px] text-[#e2d4b7]/75 mt-0.5 font-parchment">
+                  <span>Free Berths:</span>
+                  <span className="text-sky-300 font-bold">{availableCap} pax</span>
+                </div>
               </div>
             </div>
 
             {/* Target Island Card */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-md p-2.5">
-              <div className="flex items-center gap-1.5 text-slate-400 text-[10px] uppercase mb-1">
-                <span className="text-[12px]">🏝</span>
-                <span>Target Atoll</span>
+            <div className="bg-[#120a05] border border-[#6b4423] rounded-lg p-3 flex items-center gap-2.5 shadow-inner">
+              <div className="w-11 h-11 rounded-md bg-[#0a0502] border border-[#d4af37]/70 flex items-center justify-center overflow-hidden p-0.5 shrink-0 shadow">
+                <img
+                  src={
+                    island.image ||
+                    (island.name.includes('Skull')
+                      ? '/pirate_skull_island.png'
+                      : island.name.includes('Tortuga')
+                      ? '/tortuga_island.png'
+                      : island.name.includes('Siren')
+                      ? '/siren_island.png'
+                      : '/razor_reef.png')
+                  }
+                  alt={island.name}
+                  className="w-full h-full object-contain drop-shadow"
+                />
               </div>
-              <div className="flex items-center justify-between">
-                <p className="font-bold text-slate-200 text-[11px] truncate">{island.name}</p>
-                <span
-                  className="text-[7.5px] uppercase px-1 py-0.2 rounded font-bold"
-                  style={{ color: tc.text, backgroundColor: `${tc.bg}22` }}
-                >
-                  {island.triage}
-                </span>
-              </div>
-              <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                <span>Castaways:</span>
-                <span className="text-red-400 font-bold">{remainingSurvivors} left</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between text-[#c89b3c]/80 text-[9.5px] uppercase mb-0.5 font-bold">
+                  <div className="flex items-center gap-1">
+                    <MapPin size={10} className="text-emerald-400" />
+                    <span>Atoll</span>
+                  </div>
+                  <span
+                    className="text-[7.5px] uppercase px-1.5 py-0.2 rounded font-bold"
+                    style={{ color: tc.text, backgroundColor: `${tc.bg}33`, border: `1px solid ${tc.border}` }}
+                  >
+                    {isIslandSafe ? 'SAFE' : island.triage}
+                  </span>
+                </div>
+                <p className="font-extrabold text-[#f3e5ab] text-[11.5px] truncate">{island.name}</p>
+                <div className="flex justify-between text-[9.5px] text-[#e2d4b7]/75 mt-0.5 font-parchment">
+                  <span>Castaways:</span>
+                  <span className={isIslandSafe ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                    {remainingSurvivors} left
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Navigational Telemetry */}
-          <div className="bg-slate-950/70 border border-sky-500/20 rounded-md p-2.5 flex items-center justify-between text-[10.5px]">
-            <div className="flex items-center gap-1.5 text-sky-300">
-              <Compass size={13} className="text-sky-400 animate-spin-slow" />
-              <span>A* Hazard Route:</span>
+          <div className="bg-[#110904] border border-[#c89b3c]/40 rounded-lg p-3 flex items-center justify-between text-[11px]">
+            <div className="flex items-center gap-1.5 text-amber-200">
+              <Compass size={14} className="text-[#d4af37] animate-spin-slow" />
+              <span className="font-bold">A* Charted Course:</span>
             </div>
-            <div className="flex gap-3 text-slate-300">
-              <span>Dist: <strong className="text-sky-300 font-mono">{dist}px</strong></span>
-              <span>Waypoints: <strong className="text-amber-300 font-mono">{path.length}</strong></span>
-              <span>Est. Transit: <strong className="text-emerald-300 font-mono">~{etaTicks} ticks</strong></span>
-            </div>
-          </div>
-
-          {/* Castaway allocation slider */}
-          <div className="space-y-2 bg-slate-900/40 p-3 rounded-md border border-slate-800">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
-                <Users size={13} className="text-amber-400" />
-                Castaways to Board:
-              </span>
-              <span className="text-sm font-bold text-amber-300 font-mono px-2 py-0.5 bg-amber-500/20 rounded border border-amber-500/40">
-                {castaways} Souls
-              </span>
-            </div>
-
-            <input
-              type="range"
-              min={1}
-              max={maxBoard}
-              value={castaways}
-              onChange={(e) => setCastaways(Number(e.target.value))}
-              className="w-full accent-amber-400 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
-            />
-
-            <div className="flex justify-between text-[9px] text-slate-500">
-              <span>Min: 1</span>
-              <span>Available Capacity: {maxBoard}</span>
+            <div className="flex gap-3 text-[#e2d4b7]">
+              <span>Dist: <strong className="text-sky-300 font-heading">{dist} NM</strong></span>
+              <span>Waypoints: <strong className="text-amber-300 font-heading">{path.length}</strong></span>
+              <span>ETA: <strong className="text-emerald-300 font-heading">~{etaTicks} turns</strong></span>
             </div>
           </div>
+
+          {/* Castaway allocation slider (only if island has remaining survivors) */}
+          {!isIslandSafe && (
+            <div className="space-y-2 bg-[#140a04] p-3.5 rounded-lg border border-[#6b4423]">
+              <div className="flex items-center justify-between">
+                <span className="text-[11.5px] font-bold text-[#f3e5ab] flex items-center gap-1.5">
+                  <Users size={13} className="text-[#d4af37]" />
+                  Castaways to Hoist Aboard:
+                </span>
+                <span className="text-sm font-extrabold text-amber-300 font-heading px-2.5 py-0.5 bg-[#2b1708] rounded border border-[#d4af37]/60 shadow flex items-center gap-1">
+                  <Coins size={12} className="text-amber-400" />
+                  <span>{castaways} Souls</span>
+                </span>
+              </div>
+
+              <input
+                type="range"
+                min={1}
+                max={maxBoard}
+                value={castaways}
+                onChange={(e) => setUserSelectedCastaways(Number(e.target.value))}
+                className="w-full accent-amber-400 cursor-pointer h-2 bg-[#0a0502] rounded-lg border border-[#5c4028]"
+              />
+
+              <div className="flex justify-between text-[9.5px] text-[#c89b3c]/80 font-parchment italic">
+                <span>Minimum: 1 Soul</span>
+                <span>Available Capacity: {maxBoard} Berths</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-2 px-4 py-3 bg-slate-900/90 border-t border-slate-800">
+        <div className="flex items-center justify-end gap-2.5 px-5 py-3.5 bg-[#170e08] border-t border-[#8b5a2b]">
           <button
-            onClick={onClose}
-            className="px-3 py-1.5 rounded text-xs font-mono text-slate-400 hover:text-slate-200 border border-slate-700 hover:bg-slate-800 transition-colors"
+            onClick={() => {
+              setUserSelectedCastaways(null);
+              onClose();
+            }}
+            className="px-3.5 py-1.5 rounded text-xs font-heading text-amber-200/80 hover:text-amber-100 border border-[#6b4423] hover:bg-[#25150a] transition-colors cursor-pointer"
           >
-            Cancel
+            Rescind Order
           </button>
           <button
-            onClick={() => onConfirm(ship.id, island.id, castaways)}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold font-mono text-amber-950 bg-amber-400 hover:bg-amber-300 active:scale-95 transition-all shadow-[0_0_12px_rgba(245,158,11,0.3)] cursor-pointer"
+            disabled={isIslandSafe || availableCap <= 0}
+            onClick={() => {
+              onConfirm(ship.id, island.id, castaways);
+              setUserSelectedCastaways(null);
+            }}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-black font-heading text-[#1c0d02] bg-gradient-to-b from-[#f59e0b] via-[#d97706] to-[#92400e] border border-[#fde68a] hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_15px_rgba(245,158,11,0.35)] cursor-pointer"
           >
             <Check size={14} />
-            Confirm Dispatch
+            Decree Voyage
           </button>
         </div>
       </div>

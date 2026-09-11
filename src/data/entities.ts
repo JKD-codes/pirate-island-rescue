@@ -12,6 +12,7 @@ export const INITIAL_ISLANDS: Island[] = [
     triage: 'Critical',
     urgencyIndex: 0,
     status: 'pending',
+    image: '/pirate_skull_island.png',
   },
   {
     id: 'isl-2',
@@ -23,6 +24,7 @@ export const INITIAL_ISLANDS: Island[] = [
     triage: 'Urgent',
     urgencyIndex: 0,
     status: 'pending',
+    image: '/razor_reef.png',
   },
   {
     id: 'isl-3',
@@ -34,6 +36,7 @@ export const INITIAL_ISLANDS: Island[] = [
     triage: 'Stable',
     urgencyIndex: 0,
     status: 'pending',
+    image: '/siren_island.png',
   },
   {
     id: 'isl-4',
@@ -45,6 +48,7 @@ export const INITIAL_ISLANDS: Island[] = [
     triage: 'Critical',
     urgencyIndex: 0,
     status: 'pending',
+    image: '/razor_reef.png',
   },
   {
     id: 'isl-5',
@@ -56,6 +60,7 @@ export const INITIAL_ISLANDS: Island[] = [
     triage: 'Urgent',
     urgencyIndex: 0,
     status: 'pending',
+    image: '/tortuga_island.png',
   },
 ];
 
@@ -68,13 +73,14 @@ export const INITIAL_SHIPS: Ship[] = [
     y: 80,
     startX: 60,
     startY: 80,
-    capacity: 60,
+    capacity: 30,
     load: 0,
     speed: 3.5,
     status: 'idle',
     targetIslandId: null,
     path: [],
     pathIndex: 0,
+    image: '/boat_1.png',
   },
   {
     id: 'ship-2',
@@ -83,13 +89,14 @@ export const INITIAL_SHIPS: Ship[] = [
     y: 80,
     startX: 740,
     startY: 80,
-    capacity: 50,
+    capacity: 25,
     load: 0,
     speed: 3.0,
     status: 'idle',
     targetIslandId: null,
     path: [],
     pathIndex: 0,
+    image: '/boat_2.png',
   },
   {
     id: 'ship-3',
@@ -98,13 +105,14 @@ export const INITIAL_SHIPS: Ship[] = [
     y: 520,
     startX: 80,
     startY: 520,
-    capacity: 40,
+    capacity: 20,
     load: 0,
     speed: 4.5,
     status: 'idle',
     targetIslandId: null,
     path: [],
     pathIndex: 0,
+    image: '/boat_3.png',
   },
 ];
 
@@ -118,15 +126,19 @@ export const INITIAL_STORMS: Storm[] = [
     radius: 85,
     vx: 0.45,
     vy: -0.25,
+    image: '/cyclone.png',
+    type: 'cyclone',
   },
   {
     id: 'storm-2',
-    name: 'Tempest Maw',
+    name: 'Abyssal Kraken',
     x: 560,
     y: 320,
     radius: 75,
     vx: -0.35,
     vy: 0.35,
+    image: '/deep_sea_monster.png',
+    type: 'monster',
   },
 ];
 
@@ -211,13 +223,17 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
         x: 200,
         y: 150,
         radius: 95,
+        image: '/cyclone.png',
+        type: 'cyclone',
       },
       {
         id: 'storm-2',
-        name: 'Tempest Maw',
+        name: 'Abyssal Kraken',
         x: 560,
         y: 320,
         radius: 75,
+        image: '/deep_sea_monster.png',
+        type: 'monster',
       },
     ],
   },
@@ -238,6 +254,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
         triage: 'Critical',
         urgencyIndex: 0,
         status: 'pending',
+        image: '/pirate_skull_island.png',
       },
       {
         id: 'isl-2',
@@ -249,6 +266,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
         triage: 'Urgent',
         urgencyIndex: 0,
         status: 'pending',
+        image: '/razor_reef.png',
       },
       {
         id: 'isl-3',
@@ -260,6 +278,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
         triage: 'Stable',
         urgencyIndex: 0,
         status: 'pending',
+        image: '/siren_island.png',
       },
       {
         id: 'isl-4',
@@ -271,6 +290,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
         triage: 'Critical',
         urgencyIndex: 0,
         status: 'pending',
+        image: '/razor_reef.png',
       },
       {
         id: 'isl-5',
@@ -282,6 +302,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
         triage: 'Urgent',
         urgencyIndex: 0,
         status: 'pending',
+        image: '/tortuga_island.png',
       },
     ],
     ships: INITIAL_SHIPS,

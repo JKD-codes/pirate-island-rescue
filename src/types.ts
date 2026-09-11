@@ -16,6 +16,7 @@ export interface Island {
   triage: TriageLevel;
   urgencyIndex: number;
   status: IslandStatus;
+  image?: string;
 }
 
 export interface Ship {
@@ -33,6 +34,7 @@ export interface Ship {
   targetIslandId: string | null;
   path: { x: number; y: number }[];
   pathIndex: number;
+  image?: string;
 }
 
 export interface Storm {
@@ -43,6 +45,8 @@ export interface Storm {
   radius: number;
   vx?: number;
   vy?: number;
+  image?: string;
+  type?: 'cyclone' | 'monster';
 }
 
 export interface LogEntry {

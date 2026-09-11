@@ -4,6 +4,7 @@ import RadarCanvas from './components/RadarCanvas';
 import Sidebar from './components/Sidebar';
 import ManualDispatchModal from './components/ManualDispatchModal';
 import MissionDebriefModal from './components/MissionDebriefModal';
+import KeyRequirementsModal from './components/KeyRequirementsModal';
 import {
   INITIAL_ISLANDS,
   INITIAL_SHIPS,
@@ -67,6 +68,7 @@ function App() {
 
   // Captain's Council Benchmark & Debrief State (Requirement 3)
   const [isDebriefModalOpen, setIsDebriefModalOpen] = useState(false);
+  const [isRequirementsModalOpen, setIsRequirementsModalOpen] = useState(false);
   const [isBenchmarkMode, setIsBenchmarkMode] = useState(false);
   const [totalNauticalMiles, setTotalNauticalMiles] = useState(0);
 
@@ -211,10 +213,10 @@ function App() {
       if (!next) {
         setSelectedShipId(null);
         setManualModalOpen(false);
-        addLog('⏹ Manual Dispatch Mode deactivated.', 'info');
+        addLog('[CHARTER STANDBY] Manual Dispatch Mode deactivated.', 'info');
       } else {
         playSonarPing();
-        addLog('🎯 Manual Dispatch Mode ACTIVATED: Select an idle cutter, then choose a target atoll.', 'warning');
+        addLog('[CHARTER ACTIVE] Manual Dispatch Mode engaged: Select an idle cutter, then choose a target atoll.', 'warning');
       }
       return next;
     });
@@ -226,7 +228,7 @@ function App() {
       const ship = ships.find((s) => s.id === shipId);
       if (ship) {
         playSonarPing();
-        addLog(`🎯 Cutter selected: [${ship.name}] (${ship.capacity - ship.load} berths free) — Click target atoll on map.`, 'info');
+        addLog(`[VESSEL SELECTED] Cutter [${ship.name}] (${ship.capacity - ship.load} berths free) — Choose target atoll on chart.`, 'info');
       }
     },
     [ships, addLog]
@@ -235,10 +237,13 @@ function App() {
   const handleSelectIsland = useCallback(
     (island: Island) => {
       if (!selectedShipId) return;
+      if (island.survivors - island.rescued <= 0) {
+        addLog(`[SAFE ATOLL] ${island.name} is already liberated (0 castaways). Select an atoll needing rescue.`, 'warning');
+      }
       setManualTargetIsland(island);
       setManualModalOpen(true);
     },
-    [selectedShipId]
+    [selectedShipId, addLog]
   );
 
   const handleConfirmManualDispatch = useCallback(
@@ -367,56 +372,79 @@ function App() {
     }
   }, [islands, storms, addLog]);
 
-  // ─── Dynamic Storm Drag & Real-Time Rerouting ───
+  // ─── Instant, Zero-Lag Hazard Drag & Debounced Rerouting ───
+  const rerouteTimerRef = useRef<number | null>(null);
+
+  const performRerouteForStorms = useCallback((curStorms: Storm[]) => {
+    setIslands((prevIslands) =>
+      prevIslands.map((isl) => ({
+        ...isl,
+        urgencyIndex: calculateUrgencyIndex(isl, curStorms),
+      }))
+    );
+
+    let reroutedAny = false;
+    setShips((prevShips) =>
+      prevShips.map((ship) => {
+        if (ship.status === 'idle' || ship.path.length <= 1) return ship;
+        reroutedAny = true;
+
+        const target =
+          ship.status === 'en-route' && ship.targetIslandId
+            ? islands.find((i) => i.id === ship.targetIslandId)
+            : { x: ship.startX, y: ship.startY };
+
+        if (target) {
+          const newRoute = runAStar(
+            { x: ship.x, y: ship.y },
+            { x: target.x, y: target.y },
+            curStorms
+          );
+          return {
+            ...ship,
+            path: newRoute,
+            pathIndex: 0,
+          };
+        }
+        return ship;
+      })
+    );
+
+    if (reroutedAny) {
+      playHazardAlert();
+    }
+  }, [islands]);
+
   const handleStormDrag = useCallback(
     (stormId: string, x: number, y: number) => {
+      // 1. Instantaneous visual position update (runs in <0.2ms!)
       setStorms((prevStorms) => {
-        const nextStorms = prevStorms.map((s) =>
-          s.id === stormId ? { ...s, x, y } : s
-        );
+        const next = prevStorms.map((s) => (s.id === stormId ? { ...s, x, y } : s));
 
-        setIslands((prevIslands) =>
-          prevIslands.map((isl) => ({
-            ...isl,
-            urgencyIndex: calculateUrgencyIndex(isl, nextStorms),
-          }))
-        );
-
-        let reroutedAny = false;
-        setShips((prevShips) =>
-          prevShips.map((ship) => {
-            if (ship.status === 'idle' || ship.path.length <= 1) return ship;
-            reroutedAny = true;
-
-            const target =
-              ship.status === 'en-route' && ship.targetIslandId
-                ? islands.find((i) => i.id === ship.targetIslandId)
-                : { x: ship.startX, y: ship.startY };
-
-            if (target) {
-              const newRoute = runAStar(
-                { x: ship.x, y: ship.y },
-                { x: target.x, y: target.y },
-                nextStorms
-              );
-              return {
-                ...ship,
-                path: newRoute,
-                pathIndex: 0,
-              };
-            }
-            return ship;
-          })
-        );
-
-        if (reroutedAny) {
-          playHazardAlert();
+        // 2. Debounce heavy A* recalculations during active dragging (every 100ms)
+        if (rerouteTimerRef.current) {
+          window.clearTimeout(rerouteTimerRef.current);
         }
+        rerouteTimerRef.current = window.setTimeout(() => {
+          performRerouteForStorms(next);
+        }, 100);
 
-        return nextStorms;
+        return next;
       });
     },
-    [islands]
+    [performRerouteForStorms]
+  );
+
+  const handleStormDragEnd = useCallback(
+    (stormId: string) => {
+      if (rerouteTimerRef.current) {
+        window.clearTimeout(rerouteTimerRef.current);
+      }
+      performRerouteForStorms(stateRef.current.storms);
+      const stormName = stateRef.current.storms.find((s) => s.id === stormId)?.name || 'Hazard';
+      addLog(`⚓ Chart updated: [${stormName}] repositioned. Fleet courses recalculating!`, 'warning');
+    },
+    [performRerouteForStorms, addLog]
   );
 
   // ─── Solve Dispatch ───
@@ -597,7 +625,7 @@ function App() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#070b14] text-slate-200 overflow-hidden select-none">
+    <div className="h-screen w-screen flex flex-col bg-[#0a0604] text-[#f4ecd8] overflow-hidden select-none font-heading">
       <Header
         totalSurvivors={totalSurvivors}
         totalRescued={totalRescued}
@@ -611,18 +639,20 @@ function App() {
         isManualDispatchMode={isManualDispatchMode}
         onToggleManualDispatch={handleToggleManualDispatch}
         onRunBenchmark={handleRunBenchmark}
+        onOpenRequirements={() => setIsRequirementsModalOpen(true)}
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
         isDrawerOpen={isDrawerOpen}
         onToggleDrawer={() => setIsDrawerOpen(!isDrawerOpen)}
       />
 
-      <div className="flex-1 flex min-h-0 relative">
+      <div className="flex-1 flex min-h-0 relative bg-[#0d0805]">
         <RadarCanvas
           islands={islands}
           ships={ships}
           storms={storms}
           onStormDrag={handleStormDrag}
+          onStormDragEnd={handleStormDragEnd}
           isManualDispatchMode={isManualDispatchMode}
           selectedShipId={selectedShipId}
           onSelectShip={handleSelectShip}
@@ -665,6 +695,17 @@ function App() {
           setManualModalOpen(false);
           setSelectedShipId(null);
         }}
+      />
+
+      {/* Official Key Requirements & Voyage Constraints Modal */}
+      <KeyRequirementsModal
+        isOpen={isRequirementsModalOpen}
+        onClose={() => setIsRequirementsModalOpen(false)}
+        totalInitial={initialSurvivors}
+        totalRescued={totalRescued}
+        totalStranded={totalSurvivors}
+        islands={islands}
+        ships={ships}
       />
 
       {/* Captain's Council Mission Debrief Modal */}
