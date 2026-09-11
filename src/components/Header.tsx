@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Anchor,
   Ship,
@@ -14,6 +14,8 @@ import {
   Menu,
   Navigation,
   Wind,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { SCENARIO_PRESETS } from '../data/entities';
 
@@ -54,6 +56,36 @@ export default function Header({
   isDrawerOpen,
   onToggleDrawer,
 }: HeaderProps) {
+  const [isScenarioOpen, setIsScenarioOpen] = useState(false);
+  const scenarioDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        scenarioDropdownRef.current &&
+        !scenarioDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsScenarioOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsScenarioOpen(false);
+      }
+    }
+    if (isScenarioOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isScenarioOpen]);
+
+  const currentPreset =
+    SCENARIO_PRESETS.find((p) => p.id === selectedScenarioId) || SCENARIO_PRESETS[0];
+
   const chips: {
     label: string;
     value: string | number;
@@ -155,8 +187,8 @@ export default function Header({
         </div>
       </div>
 
-      {/* ─── Center Controls (Horizontally Scrollable Glass Strip) ─── */}
-      <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none py-0.5 sm:py-0 w-full sm:w-auto justify-start sm:justify-center">
+      {/* ─── Center Controls (Glass Action Strip) ─── */}
+      <div className="flex items-center flex-wrap sm:flex-nowrap gap-1.5 sm:gap-2 overflow-visible py-0.5 sm:py-0 w-full sm:w-auto justify-start sm:justify-center">
         {/* "Captain's Council" 1-Click Benchmark Demo */}
         <button
           onClick={onRunBenchmark}
@@ -166,24 +198,91 @@ export default function Header({
           <span className="whitespace-nowrap">Benchmark Run</span>
         </button>
 
-        {/* Scenario Selector Glass Dropdown */}
-        <div className="shrink-0 flex items-center gap-1.5 bg-slate-950/60 backdrop-blur-md border border-white/10 hover:border-amber-400/30 rounded-lg px-2.5 py-1 shadow-sm transition-all">
-          <Layers size={11} className="text-amber-400 shrink-0" />
-          <select
-            value={selectedScenarioId}
-            onChange={(e) => onSelectScenario(e.target.value)}
-            className="bg-transparent text-[10px] sm:text-[11px] font-outfit text-slate-200 outline-none cursor-pointer pr-1"
+        {/* Custom Glassmorphic Scenario Selector Dropdown */}
+        <div className="relative shrink-0" ref={scenarioDropdownRef}>
+          <button
+            type="button"
+            onClick={() => setIsScenarioOpen((prev) => !prev)}
+            aria-expanded={isScenarioOpen}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10.5px] sm:text-[11px] font-outfit backdrop-blur-md border transition-all cursor-pointer ${
+              isScenarioOpen
+                ? 'bg-amber-500/20 border-amber-400/80 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                : 'bg-slate-950/70 border-white/10 hover:border-amber-400/40 text-slate-200 hover:bg-slate-900/80'
+            }`}
           >
-            {SCENARIO_PRESETS.map((preset) => (
-              <option
-                key={preset.id}
-                value={preset.id}
-                className="bg-[#0b1329] text-slate-200"
-              >
-                {preset.name}
-              </option>
-            ))}
-          </select>
+            <Layers size={12} className="text-amber-400 shrink-0" />
+            <span className="font-semibold text-slate-200 max-w-[130px] sm:max-w-[170px] truncate text-left">
+              {currentPreset.name.replace(/^Scenario \d+:\s*/, '')}
+            </span>
+            <span
+              className={`text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.2 rounded border hidden md:inline-block ${currentPreset.badgeColor}`}
+            >
+              {currentPreset.tag}
+            </span>
+            <ChevronDown
+              size={12}
+              className={`text-slate-400 shrink-0 transition-transform duration-200 ${
+                isScenarioOpen ? 'rotate-180 text-amber-400' : ''
+              }`}
+            />
+          </button>
+
+          {/* Floating Dropdown Panel */}
+          {isScenarioOpen && (
+            <div className="absolute top-full mt-2 left-0 sm:left-auto sm:right-0 w-[290px] sm:w-[330px] rounded-xl bg-[#091124]/95 backdrop-blur-2xl border border-amber-500/35 shadow-[0_16px_40px_rgba(0,0,0,0.85),0_0_25px_rgba(245,158,11,0.18)] z-50 p-1.5 space-y-1 animate-fade-in">
+              <div className="px-2.5 py-1.5 flex items-center justify-between border-b border-white/[0.08] mb-1">
+                <span className="font-cinzel text-[9.5px] font-bold tracking-widest text-amber-300 uppercase flex items-center gap-1.5">
+                  <Layers size={10} className="text-amber-400" />
+                  Mission Scenarios
+                </span>
+                <span className="text-[8.5px] text-slate-400 font-telemetry tracking-wider uppercase">
+                  {SCENARIO_PRESETS.length} Presets
+                </span>
+              </div>
+
+              {SCENARIO_PRESETS.map((preset) => {
+                const isSelected = preset.id === selectedScenarioId;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => {
+                      onSelectScenario(preset.id);
+                      setIsScenarioOpen(false);
+                    }}
+                    className={`w-full text-left p-2 rounded-lg transition-all border flex flex-col gap-1 cursor-pointer ${
+                      isSelected
+                        ? 'bg-amber-500/15 border-amber-400/50 shadow-[0_0_12px_rgba(245,158,11,0.15)]'
+                        : 'bg-slate-900/40 border-transparent hover:bg-slate-800/60 hover:border-white/10 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className={`text-[11px] font-bold truncate ${
+                            isSelected ? 'text-amber-200' : 'text-slate-100'
+                          }`}
+                        >
+                          {preset.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span
+                          className={`text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${preset.badgeColor}`}
+                        >
+                          {preset.tag}
+                        </span>
+                        {isSelected && <Check size={12} className="text-amber-400 shrink-0 ml-0.5" />}
+                      </div>
+                    </div>
+                    <p className="text-[9.5px] text-slate-400 font-outfit leading-relaxed line-clamp-2">
+                      {preset.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Storm Drift Mode Toggle */}
