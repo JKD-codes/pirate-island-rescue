@@ -10,6 +10,8 @@ import {
 } from './data/entities';
 import type { Island, Ship, Storm, LogEntry } from './types';
 
+import { solveDispatchPlan } from './algorithms/dispatch';
+
 function App() {
   const [islands, setIslands] = useState<Island[]>(
     () => structuredClone(INITIAL_ISLANDS)
@@ -54,10 +56,13 @@ function App() {
     []
   );
 
-  // ─── Stubs for Phase 2 ───
+  // ─── Solve Dispatch (Phase 2) ───
   const handleSolve = () => {
-    addLog('Dispatch solver initiated — computing optimal routes…', 'warning');
-    addLog('⚡ Solver stub: Full A* + greedy dispatch coming in Phase 2.', 'info');
+    addLog('🧮 Dispatch solver initiated — computing A* routes…', 'warning');
+    const result = solveDispatchPlan(islands, ships, storms);
+    setShips(result.updatedShips);
+    setIslands(result.updatedIslands);
+    setLogs((prev) => [...prev, ...result.logs]);
   };
 
   const handleToggleSimulation = () => {

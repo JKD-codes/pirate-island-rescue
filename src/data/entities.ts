@@ -1,4 +1,4 @@
-import { Island, Ship, Storm, LogEntry } from '../types';
+import type { Island, Ship, Storm, LogEntry } from '../types';
 
 // ─── 5 Islands (Atolls) ───
 export const INITIAL_ISLANDS: Island[] = [

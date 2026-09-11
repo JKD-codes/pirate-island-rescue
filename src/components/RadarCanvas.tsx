@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { Island, Ship, Storm } from '../types';
+import type { Island, Ship, Storm } from '../types';
 import { TRIAGE_COLORS, SHIP_COLORS } from '../data/entities';
 
 interface RadarCanvasProps {
@@ -323,6 +323,58 @@ export default function RadarCanvas({
                 >
                   {island.triage}
                 </text>
+              </g>
+            );
+          })}
+
+          {/* ─── A* Route Paths ─── */}
+          {ships.map((ship, idx) => {
+            if (ship.path.length < 2) return null;
+            const color = SHIP_COLORS[idx % SHIP_COLORS.length];
+            const d = ship.path
+              .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`)
+              .join(' ');
+            return (
+              <g key={`path-${ship.id}`}>
+                {/* Glow layer */}
+                <path
+                  d={d}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth="4"
+                  strokeOpacity="0.12"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {/* Main dashed route */}
+                <path
+                  d={d}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth="1.5"
+                  strokeOpacity="0.7"
+                  strokeDasharray="4,4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <animate
+                    attributeName="stroke-dashoffset"
+                    values="0;-16"
+                    dur="1s"
+                    repeatCount="indefinite"
+                  />
+                </path>
+                {/* Waypoint dots */}
+                {ship.path.filter((_, i) => i > 0 && i < ship.path.length - 1 && i % 3 === 0).map((p, i) => (
+                  <circle
+                    key={i}
+                    cx={p.x}
+                    cy={p.y}
+                    r={1.5}
+                    fill={color}
+                    fillOpacity="0.4"
+                  />
+                ))}
               </g>
             );
           })}
