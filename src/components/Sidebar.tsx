@@ -177,24 +177,35 @@ export default function Sidebar({
                 : 0;
             const sc = STATUS_COLORS[ship.status] || STATUS_COLORS.idle;
             const targetIsl = islands.find((i) => i.id === ship.targetIslandId);
+            const boatImg = idx === 0 ? '/boat_1.png' : idx === 1 ? '/boat_2.png' : '/boat_3.png';
 
             return (
               <div
                 key={ship.id}
                 className="rounded-md bg-slate-900/70 border border-slate-800 px-3 py-2 transition-all hover:border-slate-700"
               >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="w-2 h-2 rounded-full animate-pulse"
-                      style={{ backgroundColor: color }}
-                    />
-                    <span
-                      className="text-[11px] font-semibold tracking-wide"
-                      style={{ color }}
-                    >
-                      {ship.name}
-                    </span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded bg-slate-950/90 border border-slate-700/60 flex items-center justify-center overflow-hidden p-0.5 shrink-0 shadow-inner">
+                      <img src={boatImg} alt={ship.name} className="w-full h-full object-contain drop-shadow" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full animate-pulse"
+                          style={{ backgroundColor: color }}
+                        />
+                        <span
+                          className="text-[11px] font-semibold tracking-wide"
+                          style={{ color }}
+                        >
+                          {ship.name}
+                        </span>
+                      </div>
+                      <span className="text-[8px] font-mono text-slate-500">
+                        {idx === 0 ? 'Heavy Galleon' : idx === 1 ? 'War Frigate' : 'Phantom Clipper'}
+                      </span>
+                    </div>
                   </div>
                   <span
                     className={`text-[8.5px] font-mono uppercase px-1.5 py-0.5 rounded border ${sc.bg} ${sc.text} ${sc.border}`}

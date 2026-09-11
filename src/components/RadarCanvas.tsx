@@ -699,17 +699,31 @@ export default function RadarCanvas({
             const loadPct = ship.capacity > 0 ? ship.load / ship.capacity : 0;
             const isSelected = selectedShipId === ship.id;
             const isIdle = ship.status === 'idle';
+            const isHolding = ship.status === 'holding';
+            const isMoving = ship.status === 'en-route' || ship.status === 'returning';
             const canSelect = isManualDispatchMode && isIdle;
 
-            // Calculate heading rotation towards next waypoint
-            let headingAngle = 0;
+            // Boat sprite image mapping
+            const boatImg =
+              idx === 0 ? '/boat_1.png' : idx === 1 ? '/boat_2.png' : '/boat_3.png';
+
+            // Calculate direction vector towards current waypoint
+            let dx = 0;
+            let dy = 0;
             if (ship.path && ship.path[ship.pathIndex]) {
               const targetWp = ship.path[ship.pathIndex];
-              headingAngle =
-                (Math.atan2(targetWp.y - ship.y, targetWp.x - ship.x) * 180) /
-                  Math.PI +
-                90;
+              dx = targetWp.x - ship.x;
+              dy = targetWp.y - ship.y;
             }
+
+            // Sprite naturally faces down-left. If sailing eastward (dx > 0.05), flip horizontally
+            const isFacingRight = dx > 0.05;
+
+            // Dynamic pitch angle tilting into wave trajectory (-14 to +14 deg)
+            const dist = Math.hypot(dx, dy) || 1;
+            const pitchDeg = isMoving
+              ? Math.max(-14, Math.min(14, (dy / dist) * 16)) * (isFacingRight ? -1 : 1)
+              : 0;
 
             return (
               <g
@@ -721,85 +735,155 @@ export default function RadarCanvas({
                   }
                 }}
               >
-                {/* Selected Cutter Targeting Reticle */}
+                {/* 1. Dynamic Water Foam Wake when sailing */}
+                {isMoving && (
+                  <g className="pointer-events-none">
+                    <ellipse
+                      cx={ship.x + (isFacingRight ? -22 : 22)}
+                      cy={ship.y + 12}
+                      rx={9}
+                      ry={3.5}
+                      fill="#ffffff"
+                      fillOpacity="0.4"
+                    >
+                      <animate
+                        attributeName="rx"
+                        values="6;16;6"
+                        dur="0.8s"
+                        repeatCount="indefinite"
+                      />
+                      <animate
+                        attributeName="opacity"
+                        values="0.6;0.1;0.6"
+                        dur="0.8s"
+                        repeatCount="indefinite"
+                      />
+                    </ellipse>
+                    <ellipse
+                      cx={ship.x + (isFacingRight ? -30 : 30)}
+                      cy={ship.y + 14}
+                      rx={13}
+                      ry={4.5}
+                      fill="#38bdf8"
+                      fillOpacity="0.25"
+                    >
+                      <animate
+                        attributeName="rx"
+                        values="9;22;9"
+                        dur="1.1s"
+                        repeatCount="indefinite"
+                      />
+                      <animate
+                        attributeName="opacity"
+                        values="0.4;0.05;0.4"
+                        dur="1.1s"
+                        repeatCount="indefinite"
+                      />
+                    </ellipse>
+                  </g>
+                )}
+
+                {/* 2. Waterline Hull Shadow (Realistic displacement in water) */}
+                <ellipse
+                  cx={ship.x}
+                  cy={ship.y + 14}
+                  rx={22}
+                  ry={6}
+                  fill="#030814"
+                  fillOpacity="0.6"
+                  className="pointer-events-none"
+                />
+
+                {/* 3. Selected Cutter Targeting Reticle */}
                 {isSelected && (
                   <g>
                     <circle
                       cx={ship.x}
-                      cy={ship.y}
-                      r={26}
+                      cy={ship.y + 6}
+                      r={30}
                       fill="none"
                       stroke="#fbbf24"
-                      strokeWidth="1.6"
-                      strokeDasharray="4 2"
+                      strokeWidth="1.8"
+                      strokeDasharray="5 3"
                     >
                       <animateTransform
                         attributeName="transform"
                         type="rotate"
-                        from={`0 ${ship.x} ${ship.y}`}
-                        to={`360 ${ship.x} ${ship.y}`}
-                        dur="4s"
+                        from={`0 ${ship.x} ${ship.y + 6}`}
+                        to={`360 ${ship.x} ${ship.y + 6}`}
+                        dur="3.5s"
                         repeatCount="indefinite"
                       />
                     </circle>
                     <text
                       x={ship.x}
-                      y={ship.y - 34}
+                      y={ship.y - 36}
                       textAnchor="middle"
                       className="text-[7.5px] font-mono font-bold uppercase tracking-wider"
                       fill="#fbbf24"
                     >
-                      [SELECTED]
+                      [SELECTED CUTTER]
                     </text>
                   </g>
                 )}
 
-                {/* Range ring */}
+                {/* 4. Range ring */}
                 <circle
                   cx={ship.x}
-                  cy={ship.y}
-                  r={20}
+                  cy={ship.y + 6}
+                  r={24}
                   fill="none"
                   stroke={color}
                   strokeWidth="0.6"
-                  strokeOpacity="0.2"
+                  strokeOpacity="0.25"
                   strokeDasharray="3 3"
                 />
 
-                {/* Rotated ship hull */}
-                <g transform={`rotate(${headingAngle} ${ship.x} ${ship.y})`}>
-                  <polygon
-                    points={shipShape(ship.x, ship.y)}
-                    fill={color}
-                    fillOpacity={isSelected ? 0.5 : 0.3}
-                    stroke={isSelected ? '#fbbf24' : color}
-                    strokeWidth={isSelected ? 2 : 1.4}
-                  />
-                  {/* Blinking beacon */}
-                  <circle
-                    cx={ship.x}
-                    cy={ship.y - 5}
-                    r={2}
-                    fill={ship.status === 'idle' ? '#22d3ee' : ship.status === 'holding' ? '#f59e0b' : '#34d399'}
-                  >
-                    <animate
-                      attributeName="opacity"
-                      values="1;0.3;1"
-                      dur="1.5s"
+                {/* 5. Animated Buoyancy Bobbing & Rocking */}
+                <g transform={`translate(${ship.x}, ${ship.y})`}>
+                  <g>
+                    {/* Vertical wave swell bobbing */}
+                    <animateTransform
+                      attributeName="transform"
+                      type="translate"
+                      values={isHolding ? '0 -1; 0 1; 0 -1' : '0 -2.5; 0 2.5; 0 -2.5'}
+                      dur={isHolding ? '4s' : `${2.2 + idx * 0.4}s`}
                       repeatCount="indefinite"
                     />
-                  </circle>
+                    {/* Gentle ocean roll rocking */}
+                    <animateTransform
+                      attributeName="transform"
+                      type="rotate"
+                      values={isHolding ? '-1.5; 1.5; -1.5' : '-2.5; 2.5; -2.5'}
+                      dur={isHolding ? '4.5s' : `${2.8 + idx * 0.3}s`}
+                      repeatCount="indefinite"
+                      additive="sum"
+                    />
+
+                    {/* Flipped & pitched boat sprite image */}
+                    <g transform={`scale(${isFacingRight ? -1 : 1}, 1) rotate(${pitchDeg})`}>
+                      <image
+                        href={boatImg}
+                        x={-28}
+                        y={-24}
+                        width={56}
+                        height={48}
+                        preserveAspectRatio="xMidYMid meet"
+                        className="drop-shadow-[0_6px_12px_rgba(0,0,0,0.7)] filter"
+                      />
+                    </g>
+                  </g>
                 </g>
 
-                {/* Heaved-To Holding Shelter Ring */}
-                {ship.status === 'holding' && (
+                {/* 6. Heaved-To Holding Shelter Aura */}
+                {isHolding && (
                   <circle
                     cx={ship.x}
-                    cy={ship.y}
-                    r={24}
+                    cy={ship.y + 6}
+                    r={28}
                     fill="none"
                     stroke="#f59e0b"
-                    strokeWidth="1.5"
+                    strokeWidth="1.6"
                     strokeDasharray="3 3"
                   >
                     <animate
@@ -811,66 +895,91 @@ export default function RadarCanvas({
                   </circle>
                 )}
 
-                {/* Ship name */}
+                {/* 7. Mast Beacon Light */}
+                <circle
+                  cx={ship.x}
+                  cy={ship.y - 18}
+                  r={2.2}
+                  fill={isIdle ? '#22d3ee' : isHolding ? '#f59e0b' : '#34d399'}
+                >
+                  <animate
+                    attributeName="opacity"
+                    values="1;0.3;1"
+                    dur="1.2s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+
+                {/* 8. Ship Name Banner */}
+                <rect
+                  x={ship.x - 36}
+                  y={ship.y - 30}
+                  width={72}
+                  height={11}
+                  rx={2}
+                  fill="#070e1c"
+                  fillOpacity="0.85"
+                  stroke={isSelected ? '#fbbf24' : color}
+                  strokeWidth="0.7"
+                />
                 <text
                   x={ship.x}
-                  y={ship.y - 24}
+                  y={ship.y - 22}
                   textAnchor="middle"
-                  className="text-[8px] font-mono font-semibold"
+                  className="text-[7.5px] font-mono font-bold"
                   fill={isSelected ? '#fbbf24' : color}
                 >
                   {ship.name}
                 </text>
 
-                {/* Status chip */}
-                {ship.status !== 'idle' && (
+                {/* 9. Status Chip */}
+                {!isIdle && (
                   <text
                     x={ship.x}
-                    y={ship.y - 15}
+                    y={ship.y + 24}
                     textAnchor="middle"
-                    className="text-[6.5px] font-mono uppercase tracking-widest font-bold"
+                    className="text-[6.5px] font-mono uppercase tracking-widest font-bold drop-shadow"
                     fill={
                       ship.status === 'returning'
                         ? '#34d399'
-                        : ship.status === 'holding'
+                        : isHolding
                         ? '#fbbf24'
                         : '#38bdf8'
                     }
                   >
-                    {ship.status === 'holding' ? 'HEAVED TO' : ship.status}
+                    {isHolding ? 'HEAVED TO' : ship.status}
                   </text>
                 )}
 
-                {/* Load bar background */}
+                {/* 10. Load Bar */}
                 <rect
-                  x={ship.x - 16}
-                  y={ship.y + 14}
-                  width={32}
-                  height={4}
+                  x={ship.x - 18}
+                  y={ship.y + 28}
+                  width={36}
+                  height={4.5}
                   rx={2}
-                  fill="#1e293b"
+                  fill="#0f172a"
                   stroke={color}
-                  strokeWidth="0.5"
-                  strokeOpacity="0.3"
+                  strokeWidth="0.6"
+                  strokeOpacity="0.4"
                 />
-                {/* Load bar fill */}
                 <rect
-                  x={ship.x - 16}
-                  y={ship.y + 14}
-                  width={32 * loadPct}
-                  height={4}
+                  x={ship.x - 18}
+                  y={ship.y + 28}
+                  width={36 * loadPct}
+                  height={4.5}
                   rx={2}
                   fill={color}
-                  fillOpacity="0.75"
+                  fillOpacity="0.85"
                 />
                 {/* Load text */}
                 <text
                   x={ship.x}
-                  y={ship.y + 26}
+                  y={ship.y + 40}
                   textAnchor="middle"
-                  className="text-[7px] font-mono font-bold"
+                  className="text-[6.5px] font-mono font-bold"
                   fill={color}
-                  fillOpacity="0.8"
+                  fillOpacity="0.9"
                 >
                   {ship.load}/{ship.capacity}
                 </text>
@@ -915,14 +1024,4 @@ function hexPoints(cx: number, cy: number, r: number): string {
     const angle = (Math.PI / 3) * i - Math.PI / 6;
     return `${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`;
   }).join(' ');
-}
-
-function shipShape(cx: number, cy: number): string {
-  return [
-    `${cx},${cy - 10}`,
-    `${cx + 7},${cy + 2}`,
-    `${cx + 4},${cy + 10}`,
-    `${cx - 4},${cy + 10}`,
-    `${cx - 7},${cy + 2}`,
-  ].join(' ');
 }
