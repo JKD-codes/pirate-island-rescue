@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { ElementType } from 'react';
 import { SCENARIO_PRESETS } from '../data/entities';
+import { playShipBellChime, playParchmentSound } from '../utils/audio';
 
 interface HeaderProps {
   totalSurvivors: number;
@@ -150,7 +151,10 @@ export default function Header({
       <div className="hidden sm:flex items-center gap-2 flex-wrap">
         {/* Official Directives & Key Requirements Modal Button */}
         <button
-          onClick={onOpenRequirements}
+          onClick={() => {
+            playParchmentSound();
+            onOpenRequirements();
+          }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-heading font-extrabold uppercase tracking-wider bg-gradient-to-b from-[#10b981] via-[#059669] to-[#047857] text-[#022c22] border border-[#6ee7b7] shadow-[0_0_15px_rgba(16,185,129,0.35)] hover:brightness-110 active:scale-95 transition-all cursor-pointer"
         >
           <CheckCircle2 size={13} className="text-[#022c22]" />
@@ -159,7 +163,10 @@ export default function Header({
 
         {/* "Captain's Council" 1-Click Benchmark Demo */}
         <button
-          onClick={onRunBenchmark}
+          onClick={() => {
+            playShipBellChime();
+            onRunBenchmark();
+          }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-heading font-extrabold uppercase tracking-wider bg-gradient-to-b from-[#f59e0b] via-[#d97706] to-[#92400e] text-[#1c0d02] border border-[#fde68a] shadow-[0_0_15px_rgba(245,158,11,0.4)] hover:brightness-110 active:scale-95 transition-all cursor-pointer"
         >
           <Trophy size={13} className="text-[#1c0d02]" />
@@ -171,7 +178,10 @@ export default function Header({
           <ScrollText size={13} className="text-[#d4af37]" />
           <select
             value={selectedScenarioId}
-            onChange={(e) => onSelectScenario(e.target.value)}
+            onChange={(e) => {
+              playParchmentSound();
+              onSelectScenario(e.target.value);
+            }}
             className="bg-transparent text-[10.5px] font-heading text-[#f3e5ab] outline-none cursor-pointer pr-1"
           >
             {SCENARIO_PRESETS.map((preset) => (
@@ -188,7 +198,10 @@ export default function Header({
 
         {/* Storm Winds Mode (Auto-Drift vs Manual Drag) Toggle */}
         <button
-          onClick={onToggleAutoRoam}
+          onClick={() => {
+            playParchmentSound();
+            onToggleAutoRoam();
+          }}
           title={
             autoRoamStorms
               ? 'Winds of Fate: Atmospheric Drift Active — Click to Anchor Hazards'
@@ -210,7 +223,10 @@ export default function Header({
 
         {/* Royal Charter Orders Button */}
         <button
-          onClick={onToggleManualDispatch}
+          onClick={() => {
+            playParchmentSound();
+            onToggleManualDispatch();
+          }}
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[10.5px] font-heading font-bold uppercase tracking-wider border transition-all cursor-pointer ${
             isManualDispatchMode
               ? 'bg-[#3b240f] border-[#d4af37] text-[#f3e5ab] shadow-[0_0_14px_rgba(212,175,55,0.35)]'
@@ -263,7 +279,10 @@ export default function Header({
 
         {/* Ship's Bell Audio Mute Toggle */}
         <button
-          onClick={onToggleMute}
+          onClick={() => {
+            if (isMuted) playShipBellChime();
+            onToggleMute();
+          }}
           title={isMuted ? "Ring Ship's Bell (Unmute)" : "Muffle Bell (Mute)"}
           className={`p-1.5 rounded border transition-all cursor-pointer ${
             isMuted
@@ -276,7 +295,10 @@ export default function Header({
 
         {/* Slide-over Quarterdeck Drawer Button (below 1024px) */}
         <button
-          onClick={onToggleDrawer}
+          onClick={() => {
+            playParchmentSound();
+            onToggleDrawer();
+          }}
           title={isDrawerOpen ? 'Close Quarterdeck' : 'Open Quarterdeck'}
           className={`lg:hidden flex items-center gap-1 px-2.5 py-1 rounded text-[10.5px] font-heading font-bold uppercase tracking-wider border cursor-pointer ${
             isDrawerOpen

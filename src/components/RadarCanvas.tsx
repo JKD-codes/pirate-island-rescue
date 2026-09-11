@@ -1,6 +1,9 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import type { Island, Ship, Storm } from '../types';
 import { TRIAGE_COLORS, SHIP_COLORS } from '../data/entities';
+import { playParchmentSound } from '../utils/audio';
+import { X } from 'lucide-react';
+
 
 interface RadarCanvasProps {
   islands: Island[];
@@ -27,8 +30,13 @@ export default function RadarCanvas({
 }: RadarCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const draggingRef = useRef<string | null>(null);
+  const startPointerPosRef = useRef<{ x: number; y: number } | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [inspectedEntity, setInspectedEntity] = useState<{
+    type: 'island' | 'ship' | 'storm';
+    id: string;
+  } | null>(null);
 
   // Convert client coordinates to SVG canvas coordinates
   const clientToSVG = useCallback((clientX: number, clientY: number) => {
@@ -51,6 +59,7 @@ export default function RadarCanvas({
     e.preventDefault();
     e.stopPropagation();
     draggingRef.current = stormId;
+    startPointerPosRef.current = { x: e.clientX, y: e.clientY };
     setActiveDragId(stormId);
 
     const { x, y } = clientToSVG(e.clientX, e.clientY);
@@ -72,13 +81,21 @@ export default function RadarCanvas({
       });
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (e: PointerEvent) => {
       if (draggingRef.current) {
         const stormId = draggingRef.current;
+        if (
+          startPointerPosRef.current &&
+          Math.hypot(e.clientX - startPointerPosRef.current.x, e.clientY - startPointerPosRef.current.y) < 6
+        ) {
+          playParchmentSound();
+          setInspectedEntity({ type: 'storm', id: stormId });
+        }
         if (onStormDragEnd) {
           onStormDragEnd(stormId);
         }
         draggingRef.current = null;
+        startPointerPosRef.current = null;
         setActiveDragId(null);
       }
     };
@@ -575,13 +592,22 @@ export default function RadarCanvas({
                 ? '/siren_island.png'
                 : '/razor_reef.png');
 
+            const nearestHazardDist = storms.reduce((minD, st) => {
+              const d = Math.hypot(st.x - island.x, st.y - island.y) - st.radius;
+              return Math.min(minD, d);
+            }, 9999);
+            const isInPeril = nearestHazardDist < 60 && remaining > 0;
+
             return (
               <g
                 key={island.id}
-                className={isClickable ? 'cursor-pointer' : undefined}
+                className="cursor-pointer"
                 onClick={() => {
                   if (isClickable && onSelectIsland) {
                     onSelectIsland(island);
+                  } else {
+                    playParchmentSound();
+                    setInspectedEntity({ type: 'island', id: island.id });
                   }
                 }}
               >
@@ -591,8 +617,45 @@ export default function RadarCanvas({
                   cy={island.y + 10}
                   r={46}
                   fill="transparent"
-                  className={isClickable ? 'cursor-pointer' : undefined}
+                  className="cursor-pointer"
                 />
+
+                {/* Imminent Hazard Threat Ring */}
+                {isInPeril && (
+                  <g className="pointer-events-none">
+                    <circle
+                      cx={island.x}
+                      cy={island.y + 4}
+                      r={44}
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth="1.8"
+                      strokeDasharray="4 3"
+                    >
+                      <animate attributeName="stroke-opacity" values="0.85;0.15;0.85" dur="1s" repeatCount="indefinite" />
+                      <animate attributeName="r" values="42;50;42" dur="1s" repeatCount="indefinite" />
+                    </circle>
+                    <rect
+                      x={island.x - 24}
+                      y={island.y - 42}
+                      width={48}
+                      height={11}
+                      rx={2}
+                      fill="#450a0a"
+                      stroke="#ef4444"
+                      strokeWidth="0.8"
+                    />
+                    <text
+                      x={island.x}
+                      y={island.y - 34}
+                      textAnchor="middle"
+                      className="text-[6.5px] font-mono font-bold tracking-wider"
+                      fill="#fca5a5"
+                    >
+                      ⚠️ PERIL
+                    </text>
+                  </g>
+                )}
 
                 {/* 1. Shallow Lagoon Reef Water Aura & Ripple */}
                 <ellipse
@@ -1052,6 +1115,78 @@ export default function RadarCanvas({
             );
           })}
 
+          {/* ─── Golden Rescue Hoisting Beams (Active Castaway Extraction) ─── */}
+          {ships.map((ship) => {
+            if (ship.status !== 'loading' || !ship.targetIslandId) return null;
+            const targetIsland = islands.find((isl) => isl.id === ship.targetIslandId);
+            if (!targetIsland) return null;
+            return (
+              <g key={`hoist-${ship.id}`} className="pointer-events-none">
+                {/* 1. Pulsing golden tether cable */}
+                <line
+                  x1={ship.x}
+                  y1={ship.y}
+                  x2={targetIsland.x}
+                  y2={targetIsland.y}
+                  stroke="#f59e0b"
+                  strokeWidth="2.4"
+                  strokeDasharray="5 3"
+                  filter="drop-shadow(0 0 8px rgba(245,158,11,0.9))"
+                >
+                  <animate
+                    attributeName="stroke-dashoffset"
+                    values="0;-16"
+                    dur="0.5s"
+                    repeatCount="indefinite"
+                  />
+                </line>
+                {/* 2. Floating soul beacon particles ascending to cutter hold */}
+                <circle
+                  cx={ship.x * 0.35 + targetIsland.x * 0.65}
+                  cy={ship.y * 0.35 + targetIsland.y * 0.65}
+                  r={3.5}
+                  fill="#fde68a"
+                  filter="drop-shadow(0 0 5px #fde68a)"
+                >
+                  <animate attributeName="r" values="2;4.5;2" dur="0.7s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.3;1;0.3" dur="0.7s" repeatCount="indefinite" />
+                </circle>
+                <circle
+                  cx={ship.x * 0.7 + targetIsland.x * 0.3}
+                  cy={ship.y * 0.7 + targetIsland.y * 0.3}
+                  r={3}
+                  fill="#fbbf24"
+                  filter="drop-shadow(0 0 4px #fbbf24)"
+                >
+                  <animate attributeName="r" values="1.5;4;1.5" dur="0.9s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.3;0.9;0.3" dur="0.9s" repeatCount="indefinite" />
+                </circle>
+                {/* 3. Hoisting Souls Plaque */}
+                <rect
+                  x={(ship.x + targetIsland.x) / 2 - 46}
+                  y={(ship.y + targetIsland.y) / 2 - 14}
+                  width={92}
+                  height={13}
+                  rx={3}
+                  fill="#1c1108"
+                  stroke="#f59e0b"
+                  strokeWidth="0.9"
+                  fillOpacity="0.95"
+                  filter="drop-shadow(0 2px 8px rgba(0,0,0,0.85))"
+                />
+                <text
+                  x={(ship.x + targetIsland.x) / 2}
+                  y={(ship.y + targetIsland.y) / 2 - 5}
+                  textAnchor="middle"
+                  className="text-[7px] font-heading font-black tracking-widest uppercase"
+                  fill="#fde68a"
+                >
+                  ⚓ HOISTING SOULS ⚓
+                </text>
+              </g>
+            );
+          })}
+
           {/* ─── Ships ─── */}
           {ships.map((ship, idx) => {
             const color = SHIP_COLORS[idx % SHIP_COLORS.length];
@@ -1089,10 +1224,13 @@ export default function RadarCanvas({
             return (
               <g
                 key={ship.id}
-                className={canSelect ? 'cursor-pointer' : undefined}
+                className="cursor-pointer"
                 onClick={() => {
                   if (canSelect && onSelectShip) {
                     onSelectShip(ship.id);
+                  } else {
+                    playParchmentSound();
+                    setInspectedEntity({ type: 'ship', id: ship.id });
                   }
                 }}
               >
@@ -1102,7 +1240,7 @@ export default function RadarCanvas({
                   cy={ship.y}
                   r={38}
                   fill="transparent"
-                  className={canSelect ? 'cursor-pointer' : undefined}
+                  className="cursor-pointer"
                 />
 
                 {/* 1. Dynamic Foam Stern Wake strictly aligned with voyage direction */}
@@ -1380,32 +1518,406 @@ export default function RadarCanvas({
             );
           })}
 
-          {/* ─── Coordinate labels along edges ─── */}
-          {Array.from({ length: 9 }, (_, i) => (
-            <text
-              key={`xl-${i}`}
-              x={i * 100}
-              y={596}
-              textAnchor="middle"
-              className="text-[7px] font-mono"
-              fill="#334155"
-            >
-              {i * 100}
-            </text>
+          {/* ─── Grand Maritime Cartographic Border & Checkered Ruler Margins ─── */}
+          {/* Outer Gilded Border Frame */}
+          <rect
+            x="4"
+            y="4"
+            width="792"
+            height="592"
+            fill="none"
+            stroke="#d4af37"
+            strokeWidth="2.2"
+            className="pointer-events-none"
+          />
+          {/* Inner Teak Border Frame */}
+          <rect
+            x="10"
+            y="10"
+            width="780"
+            height="580"
+            fill="none"
+            stroke="#8b5a2b"
+            strokeWidth="1.2"
+            className="pointer-events-none"
+          />
+
+          {/* Top Checkered Nautical Ruler */}
+          {Array.from({ length: 39 }, (_, i) => (
+            <rect
+              key={`t-tooth-${i}`}
+              x={10 + i * 20}
+              y={5}
+              width={20}
+              height={5}
+              fill={i % 2 === 0 ? '#d4af37' : '#170f08'}
+              stroke="#8b5a2b"
+              strokeWidth="0.3"
+              className="pointer-events-none"
+            />
           ))}
-          {Array.from({ length: 7 }, (_, i) => (
-            <text
-              key={`yl-${i}`}
-              x={6}
-              y={i * 100 + 3}
-              textAnchor="start"
-              className="text-[7px] font-mono"
-              fill="#334155"
-            >
-              {i * 100}
-            </text>
+
+          {/* Bottom Checkered Nautical Ruler */}
+          {Array.from({ length: 39 }, (_, i) => (
+            <rect
+              key={`b-tooth-${i}`}
+              x={10 + i * 20}
+              y={590}
+              width={20}
+              height={5}
+              fill={i % 2 === 0 ? '#d4af37' : '#170f08'}
+              stroke="#8b5a2b"
+              strokeWidth="0.3"
+              className="pointer-events-none"
+            />
           ))}
+
+          {/* Left Checkered Nautical Ruler */}
+          {Array.from({ length: 29 }, (_, i) => (
+            <rect
+              key={`l-tooth-${i}`}
+              x={5}
+              y={10 + i * 20}
+              width={5}
+              height={20}
+              fill={i % 2 === 0 ? '#d4af37' : '#170f08'}
+              stroke="#8b5a2b"
+              strokeWidth="0.3"
+              className="pointer-events-none"
+            />
+          ))}
+
+          {/* Right Checkered Nautical Ruler */}
+          {Array.from({ length: 29 }, (_, i) => (
+            <rect
+              key={`r-tooth-${i}`}
+              x={790}
+              y={10 + i * 20}
+              width={5}
+              height={20}
+              fill={i % 2 === 0 ? '#d4af37' : '#170f08'}
+              stroke="#8b5a2b"
+              strokeWidth="0.3"
+              className="pointer-events-none"
+            />
+          ))}
+
+          {/* Authentic Longitude Coordinates along Top & Bottom */}
+          {[
+            { x: 100, label: "68°50'W" },
+            { x: 200, label: "68°40'W" },
+            { x: 300, label: "68°30'W" },
+            { x: 400, label: "68°20'W" },
+            { x: 500, label: "68°10'W" },
+            { x: 600, label: "68°00'W" },
+            { x: 700, label: "67°50'W" },
+          ].map((c) => (
+            <g key={`long-${c.x}`} className="pointer-events-none select-none">
+              <text
+                x={c.x}
+                y={17}
+                textAnchor="middle"
+                className="text-[6.5px] font-mono font-bold"
+                fill="#d4af37"
+                fillOpacity="0.85"
+              >
+                {c.label}
+              </text>
+              <text
+                x={c.x}
+                y={587}
+                textAnchor="middle"
+                className="text-[6.5px] font-mono font-bold"
+                fill="#d4af37"
+                fillOpacity="0.85"
+              >
+                {c.label}
+              </text>
+            </g>
+          ))}
+
+          {/* Authentic Latitude Coordinates along Left & Right */}
+          {[
+            { y: 100, label: "14°50'N" },
+            { y: 200, label: "14°40'N" },
+            { y: 300, label: "14°30'N" },
+            { y: 400, label: "14°20'N" },
+            { y: 500, label: "14°10'N" },
+          ].map((c) => (
+            <g key={`lat-${c.y}`} className="pointer-events-none select-none">
+              <text
+                x={18}
+                y={c.y + 2.5}
+                textAnchor="start"
+                className="text-[6px] font-mono font-bold"
+                fill="#d4af37"
+                fillOpacity="0.85"
+              >
+                {c.label}
+              </text>
+              <text
+                x={782}
+                y={c.y + 2.5}
+                textAnchor="end"
+                className="text-[6px] font-mono font-bold"
+                fill="#d4af37"
+                fillOpacity="0.85"
+              >
+                {c.label}
+              </text>
+            </g>
+          ))}
+
+          {/* ─── Cartographic Scale Bar (Bottom-Right) ─── */}
+          <g transform="translate(605, 560)" className="pointer-events-none select-none">
+            <rect
+              x="-4"
+              y="-4"
+              width="172"
+              height="24"
+              rx="4"
+              fill="#140c06"
+              fillOpacity="0.85"
+              stroke="#8b5a2b"
+              strokeWidth="0.8"
+            />
+            <line x1="10" y1="8" x2="154" y2="8" stroke="#d4af37" strokeWidth="2.5" />
+            {/* Alternating Scale Segments */}
+            <line x1="10" y1="8" x2="46" y2="8" stroke="#170f08" strokeWidth="2.5" />
+            <line x1="82" y1="8" x2="118" y2="8" stroke="#170f08" strokeWidth="2.5" />
+            {/* Tick Marks */}
+            <line x1="10" y1="4" x2="10" y2="12" stroke="#d4af37" strokeWidth="1" />
+            <line x1="46" y1="5" x2="46" y2="11" stroke="#d4af37" strokeWidth="1" />
+            <line x1="82" y1="5" x2="82" y2="11" stroke="#d4af37" strokeWidth="1" />
+            <line x1="118" y1="5" x2="118" y2="11" stroke="#d4af37" strokeWidth="1" />
+            <line x1="154" y1="4" x2="154" y2="12" stroke="#d4af37" strokeWidth="1" />
+            {/* Scale Labels */}
+            <text x="10" y="18" textAnchor="middle" fill="#d4af37" className="text-[5.5px] font-mono">0</text>
+            <text x="46" y="18" textAnchor="middle" fill="#d4af37" className="text-[5.5px] font-mono">10</text>
+            <text x="82" y="18" textAnchor="middle" fill="#d4af37" className="text-[5.5px] font-mono">25</text>
+            <text x="118" y="18" textAnchor="middle" fill="#d4af37" className="text-[5.5px] font-mono">40</text>
+            <text x="154" y="18" textAnchor="middle" fill="#d4af37" className="text-[5.5px] font-mono">50 L</text>
+            <text x="82" y="-5" textAnchor="middle" fill="#fde68a" className="text-[5.5px] font-heading font-bold uppercase tracking-wider">
+              Nautical Leagues (1L = 3 NM)
+            </text>
+          </g>
+
+          {/* ─── Latin Cartographic Inscription in Deep Water ─── */}
+          <g transform="translate(635, 520)" opacity="0.4" className="pointer-events-none select-none">
+            <text x="0" y="0" fill="#d4af37" className="text-[7.5px] font-pirate tracking-widest text-center" textAnchor="middle">
+              ⚔ HIC SVNT DRACONES ⚔
+            </text>
+            <text x="0" y="8" fill="#c89b3c" className="text-[5px] font-parchment italic text-center" textAnchor="middle">
+              (Uncharted Abyssal Depths • Beware Leviathans)
+            </text>
+          </g>
+
         </svg>
+
+        {/* ─── Captain's Spyglass Inspector Overlay ─── */}
+        {inspectedEntity && (() => {
+          if (inspectedEntity.type === 'island') {
+            const island = islands.find((i) => i.id === inspectedEntity.id);
+            if (!island) return null;
+            const tc = TRIAGE_COLORS[island.triage];
+            const remaining = Math.max(0, island.survivors - island.rescued);
+            const assignedShip = ships.find(
+              (s) => s.targetIslandId === island.id && (s.status === 'en-route' || s.status === 'loading')
+            );
+            const nearestThreat = storms.reduce((minD, st) => {
+              const d = Math.hypot(st.x - island.x, st.y - island.y) - st.radius;
+              return Math.min(minD, d);
+            }, 9999);
+
+            return (
+              <div className="absolute top-10 right-3 sm:right-4 z-20 w-60 sm:w-68 bg-gradient-to-b from-[#201309] via-[#170c05] to-[#0f0703] border-2 border-[#d4af37] rounded-xl shadow-[0_12px_35px_rgba(0,0,0,0.92)] p-3 text-xs text-[#f4ecd8] animate-fade-in ring-2 ring-[#3d240d]">
+                <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-[#8b5a2b]/70">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">🏝️</span>
+                    <div>
+                      <h4 className="font-heading font-extrabold text-[11.5px] text-[#fde68a] leading-tight">
+                        {island.name}
+                      </h4>
+                      <p className="text-[7.5px] font-mono text-[#c89b3c]/80 uppercase tracking-widest">
+                        {island.x}X • {island.y}Y
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setInspectedEntity(null)}
+                    className="p-1 text-[#c89b3c] hover:text-amber-200 transition-colors cursor-pointer"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 font-parchment text-[10.5px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#a89078]">Triage Urgency:</span>
+                    <span
+                      className="font-bold px-1.5 py-0.5 rounded text-[8.5px] uppercase tracking-wider font-heading"
+                      style={{ backgroundColor: tc.bg + '40', color: tc.text, border: `1px solid ${tc.border}` }}
+                    >
+                      {island.triage} (P:{island.urgencyIndex.toFixed(1)})
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#a89078]">Marooned Souls:</span>
+                    <span className="font-bold font-mono text-amber-200">
+                      {remaining} <span className="text-[#8b7355] text-[9px]">/ {island.survivors}</span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#a89078]">Inbound Cutter:</span>
+                    <span className="font-bold text-sky-300 font-heading text-[9.5px]">
+                      {assignedShip ? assignedShip.name : 'None Assigned'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#a89078]">Hazard Proximity:</span>
+                    <span className={`font-mono font-bold text-[9.5px] ${nearestThreat < 65 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {Math.max(0, Math.round(nearestThreat))} Leagues {nearestThreat < 65 ? '⚠️ PERIL' : '✓ CLEAR'}
+                    </span>
+                  </div>
+                </div>
+
+                {isManualDispatchMode && selectedShipId && remaining > 0 && onSelectIsland && (
+                  <button
+                    onClick={() => {
+                      onSelectIsland(island);
+                      setInspectedEntity(null);
+                    }}
+                    className="mt-2.5 w-full py-1.5 rounded text-[10px] font-heading font-black uppercase tracking-wider bg-gradient-to-b from-[#f59e0b] to-[#b45309] text-[#1c0d02] border border-[#fde68a] hover:brightness-110 active:scale-95 transition-all shadow cursor-pointer"
+                  >
+                    Decree Charter Here
+                  </button>
+                )}
+              </div>
+            );
+          }
+
+          if (inspectedEntity.type === 'ship') {
+            const ship = ships.find((s) => s.id === inspectedEntity.id);
+            if (!ship) return null;
+            const targetIsland = islands.find((i) => i.id === ship.targetIslandId);
+            const loadPct = ship.capacity > 0 ? ship.load / ship.capacity : 0;
+
+            return (
+              <div className="absolute top-10 right-3 sm:right-4 z-20 w-60 sm:w-68 bg-gradient-to-b from-[#201309] via-[#170c05] to-[#0f0703] border-2 border-[#d4af37] rounded-xl shadow-[0_12px_35px_rgba(0,0,0,0.92)] p-3 text-xs text-[#f4ecd8] animate-fade-in ring-2 ring-[#3d240d]">
+                <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-[#8b5a2b]/70">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">⛵</span>
+                    <div>
+                      <h4 className="font-heading font-extrabold text-[11.5px] text-[#fde68a] leading-tight">
+                        {ship.name}
+                      </h4>
+                      <p className="text-[7.5px] font-mono text-[#c89b3c]/80 uppercase tracking-widest">
+                        Cruising at {ship.speed} Knots
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setInspectedEntity(null)}
+                    className="p-1 text-[#c89b3c] hover:text-amber-200 transition-colors cursor-pointer"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 font-parchment text-[10.5px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#a89078]">Status:</span>
+                    <span className="font-bold px-1.5 py-0.5 rounded text-[8.5px] uppercase tracking-wider font-heading bg-[#172554] text-sky-300 border border-sky-600/70">
+                      {ship.status === 'holding' ? 'HEAVED TO' : ship.status}
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-[#a89078]">Hold:</span>
+                      <span className="font-mono font-bold text-amber-200 text-[10px]">
+                        {ship.load}/{ship.capacity} Berths ({ship.capacity - ship.load} free)
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 rounded bg-[#0b1329] border border-[#d4af37]/40 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-300"
+                        style={{ width: `${loadPct * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#a89078]">Heading:</span>
+                    <span className="font-bold text-amber-300 font-heading text-[9.5px]">
+                      {targetIsland ? targetIsland.name : 'At Sea / Idle'}
+                    </span>
+                  </div>
+                </div>
+
+                {isManualDispatchMode && ship.status === 'idle' && onSelectShip && (
+                  <button
+                    onClick={() => {
+                      onSelectShip(ship.id);
+                      setInspectedEntity(null);
+                    }}
+                    className="mt-2.5 w-full py-1.5 rounded text-[10px] font-heading font-black uppercase tracking-wider bg-gradient-to-b from-[#f59e0b] to-[#b45309] text-[#1c0d02] border border-[#fde68a] hover:brightness-110 active:scale-95 transition-all shadow cursor-pointer"
+                  >
+                    Select for Charter
+                  </button>
+                )}
+              </div>
+            );
+          }
+
+          if (inspectedEntity.type === 'storm') {
+            const storm = storms.find((s) => s.id === inspectedEntity.id);
+            if (!storm) return null;
+            const isMonster = storm.type === 'monster' || storm.name.toLowerCase().includes('kraken');
+
+            return (
+              <div className="absolute top-10 right-3 sm:right-4 z-20 w-60 sm:w-68 bg-gradient-to-b from-[#201309] via-[#170c05] to-[#0f0703] border-2 border-[#d4af37] rounded-xl shadow-[0_12px_35px_rgba(0,0,0,0.92)] p-3 text-xs text-[#f4ecd8] animate-fade-in ring-2 ring-[#3d240d]">
+                <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-[#8b5a2b]/70">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">{isMonster ? '🦑' : '🌀'}</span>
+                    <div>
+                      <h4 className="font-heading font-extrabold text-[11.5px] text-[#fde68a] leading-tight">
+                        {storm.name}
+                      </h4>
+                      <p className="text-[7.5px] font-mono text-[#c89b3c]/80 uppercase tracking-widest">
+                        {isMonster ? 'Abyssal Calamity' : 'Cat-5 Cyclone Vortex'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setInspectedEntity(null)}
+                    className="p-1 text-[#c89b3c] hover:text-amber-200 transition-colors cursor-pointer"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 font-parchment text-[10.5px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#a89078]">Danger Zone:</span>
+                    <span className="font-mono font-bold text-rose-400">
+                      R: {storm.radius} Leagues ({storm.radius * 3} NM)
+                    </span>
+                  </div>
+
+                  <p className="text-[9.5px] text-[#c89b3c]/90 italic pt-1 border-t border-[#8b5a2b]/40">
+                    💡 Click & drag this terror on the sea chart to manually reposition and test fleet evasion!
+                  </p>
+                </div>
+              </div>
+            );
+          }
+
+          return null;
+        })()}
       </div>
     </div>
   );

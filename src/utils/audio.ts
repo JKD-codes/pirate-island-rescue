@@ -106,6 +106,64 @@ export function playHazardAlert(): void {
 }
 
 /**
+ * Authentic naval ship's bell toll with rich metallic overtones.
+ */
+export function playShipBellChime(): void {
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const partials = [
+    { freq: 659.25, gain: 0.12, decay: 1.2 }, // E5 fundamental
+    { freq: 1046.5, gain: 0.08, decay: 0.9 }, // C6 overtone
+    { freq: 1567.98, gain: 0.05, decay: 0.6 }, // G6 tierce
+    { freq: 2093.0, gain: 0.03, decay: 0.4 }, // C7 quint
+  ];
+
+  partials.forEach((p) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(p.freq, ctx.currentTime);
+
+    gain.gain.setValueAtTime(p.gain, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + p.decay);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + p.decay);
+  });
+}
+
+/**
+ * Parchment unroll / tactile map chirp.
+ */
+export function playParchmentSound(): void {
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(320, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(160, ctx.currentTime + 0.06);
+
+  gain.gain.setValueAtTime(0.05, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.07);
+}
+
+/**
  * Victory fanfare played on complete fleet evacuation.
  */
 export function playVictoryFanfare(): void {
@@ -131,3 +189,4 @@ export function playVictoryFanfare(): void {
     osc.stop(ctx.currentTime + i * 0.1 + 0.5);
   });
 }
+

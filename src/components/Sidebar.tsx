@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import type { Island, Ship as ShipT, LogEntry } from '../types';
 import { TRIAGE_COLORS, SHIP_COLORS } from '../data/entities';
+import { playShipBellChime, playParchmentSound } from '../utils/audio';
 
 interface SidebarProps {
   ships: ShipT[];
@@ -100,8 +101,11 @@ export default function Sidebar({
           {/* Tab Selector */}
           <div className="flex items-center gap-1 bg-[#0d0703] p-0.5 rounded border border-[#5c4028]">
             <button
-              onClick={() => setActiveTab('all')}
-              className={`px-2 py-0.5 rounded text-[9px] font-heading font-bold uppercase transition-all ${
+              onClick={() => {
+                playParchmentSound();
+                setActiveTab('all');
+              }}
+              className={`px-2 py-0.5 rounded text-[9px] font-heading font-bold uppercase transition-all cursor-pointer ${
                 activeTab === 'all'
                   ? 'bg-[#d4af37] text-[#1c0d02] shadow-sm'
                   : 'text-[#c89b3c]/80 hover:text-amber-100'
@@ -110,8 +114,11 @@ export default function Sidebar({
               Overview
             </button>
             <button
-              onClick={() => setActiveTab('fleet')}
-              className={`px-2 py-0.5 rounded text-[9px] font-heading font-bold uppercase transition-all ${
+              onClick={() => {
+                playParchmentSound();
+                setActiveTab('fleet');
+              }}
+              className={`px-2 py-0.5 rounded text-[9px] font-heading font-bold uppercase transition-all cursor-pointer ${
                 activeTab === 'fleet'
                   ? 'bg-[#d4af37] text-[#1c0d02] shadow-sm'
                   : 'text-[#c89b3c]/80 hover:text-amber-100'
@@ -120,8 +127,11 @@ export default function Sidebar({
               Fleet
             </button>
             <button
-              onClick={() => setActiveTab('logs')}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-heading font-bold uppercase transition-all ${
+              onClick={() => {
+                playParchmentSound();
+                setActiveTab('logs');
+              }}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-heading font-bold uppercase transition-all cursor-pointer ${
                 activeTab === 'logs'
                   ? 'bg-[#d4af37] text-[#1c0d02] shadow-sm'
                   : 'text-[#c89b3c]/80 hover:text-amber-100'
@@ -136,14 +146,20 @@ export default function Sidebar({
         {/* Primary Controls */}
         <div className="flex gap-2">
           <button
-            onClick={onSolve}
+            onClick={() => {
+              playShipBellChime();
+              onSolve();
+            }}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-[11px] font-heading font-black uppercase tracking-wider bg-gradient-to-b from-[#f59e0b] via-[#d97706] to-[#92400e] text-[#1c0d02] border-2 border-[#fef08a] hover:brightness-110 active:scale-95 transition-all duration-150 cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.4)]"
           >
             <Compass size={14} className="text-[#1c0d02]" />
             <span>Chart Passage</span>
           </button>
           <button
-            onClick={onToggleSimulation}
+            onClick={() => {
+              playShipBellChime();
+              onToggleSimulation();
+            }}
             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-[11px] font-heading font-black uppercase tracking-wider border-2 active:scale-95 transition-all duration-150 cursor-pointer ${
               isRunning
                 ? 'bg-gradient-to-b from-[#dc2626] via-[#b91c1c] to-[#7f1d1d] text-rose-100 border-rose-300 shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:brightness-110'
@@ -170,7 +186,10 @@ export default function Sidebar({
             ].map((item) => (
               <button
                 key={item.mult}
-                onClick={() => onSetSpeedMultiplier(item.mult)}
+                onClick={() => {
+                  playParchmentSound();
+                  onSetSpeedMultiplier(item.mult);
+                }}
                 className={`flex-1 py-1 rounded text-[8.5px] font-heading font-extrabold uppercase transition-all cursor-pointer ${
                   speedMultiplier === item.mult
                     ? 'bg-gradient-to-b from-[#f59e0b] to-[#b45309] text-[#1c0d02] border border-[#fde68a] shadow-[0_0_10px_rgba(245,158,11,0.5)]'
@@ -184,7 +203,10 @@ export default function Sidebar({
 
           <div className="flex items-center gap-1.5">
             <button
-              onClick={onStep}
+              onClick={() => {
+                playParchmentSound();
+                onStep();
+              }}
               disabled={isRunning}
               title="Advance 1 Nautical Turn"
               className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-heading font-bold bg-gradient-to-b from-[#251509] to-[#170c05] border border-[#d4af37]/60 text-amber-200 hover:text-white hover:border-[#fde68a] disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm"
@@ -194,7 +216,10 @@ export default function Sidebar({
             </button>
 
             <button
-              onClick={onReset}
+              onClick={() => {
+                playParchmentSound();
+                onReset();
+              }}
               title="Reset Sea Chart"
               className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-heading font-bold bg-gradient-to-b from-[#251509] to-[#170c05] border border-[#d4af37]/60 text-amber-300 hover:text-white hover:border-[#fde68a] transition-all cursor-pointer shadow-sm"
             >
@@ -267,8 +292,14 @@ export default function Sidebar({
                 return (
                   <div
                     key={ship.id}
-                    className="rounded-lg bg-[#1a1109] border border-[#6b4423] p-2.5 transition-all hover:border-[#c89b3c]/80 shadow-md"
+                    className="relative rounded-lg bg-[#1a1109] border border-[#6b4423] p-2.5 transition-all hover:border-[#c89b3c]/80 shadow-md group"
                   >
+                    {/* Brass Corner Studs */}
+                    <div className="absolute top-1 left-1 w-1 h-1 rounded-full bg-[#d4af37]/60 shadow-[0_0_2px_#d4af37]" />
+                    <div className="absolute top-1 right-1 w-1 h-1 rounded-full bg-[#d4af37]/60 shadow-[0_0_2px_#d4af37]" />
+                    <div className="absolute bottom-1 left-1 w-1 h-1 rounded-full bg-[#d4af37]/60 shadow-[0_0_2px_#d4af37]" />
+                    <div className="absolute bottom-1 right-1 w-1 h-1 rounded-full bg-[#d4af37]/60 shadow-[0_0_2px_#d4af37]" />
+
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2.5 min-w-0">
                         {/* Miniature Porthole */}
@@ -377,12 +408,15 @@ export default function Sidebar({
                 return (
                   <div
                     key={island.id}
-                    className={`flex items-center gap-2.5 rounded-lg border px-2.5 py-1.5 transition-all shadow-inner ${
+                    className={`relative flex items-center gap-2.5 rounded-lg border px-2.5 py-1.5 transition-all shadow-inner ${
                       isCleared
                         ? 'bg-[#122818]/60 border-[#15803d]/60'
                         : 'bg-[#1a1109] border-[#6b4423]'
                     }`}
                   >
+                    <div className="absolute top-1 left-1 w-1 h-1 rounded-full bg-[#d4af37]/40" />
+                    <div className="absolute top-1 right-1 w-1 h-1 rounded-full bg-[#d4af37]/40" />
+
                     {/* Island portrait */}
                     <div className="w-8 h-8 rounded-md bg-[#0e0703] border border-[#d4af37]/60 flex items-center justify-center overflow-hidden p-0.5 shrink-0 shadow">
                       <img src={islandImg} alt={island.name} className="w-full h-full object-contain drop-shadow" />
