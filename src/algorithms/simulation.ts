@@ -68,28 +68,69 @@ export function stepSimulation(
             island.rescued += take;
             ship.load += take;
 
-            logs.push({
-              timestamp: timestamp(),
-              message: `⚓ ${ship.name} made landfall at ${island.name}. Loaded ${take} survivors (${island.survivors - island.rescued} remain).`,
-              type: 'success',
-            });
+            const islandNowCleared = island.survivors - island.rescued <= 0;
 
-            // Chart return path back to staging base
-            const returnPath = runAStar(
-              { x: ship.x, y: ship.y },
-              { x: ship.startX, y: ship.startY },
-              storms
-            );
-
-            ship.path = returnPath;
-            ship.pathIndex = 1;
-            ship.status = 'returning';
+            if (islandNowCleared) {
+              logs.push({
+                timestamp: timestamp(),
+                message: `🔔 [EVACUATED] ${island.name} 100% evacuated! All pirate souls secured.`,
+                type: 'success',
+              });
+            }
 
             logs.push({
               timestamp: timestamp(),
-              message: `🔄 ${ship.name} plotting return heading to staging port with ${ship.load} souls aboard.`,
+              message: `⚓ ${ship.name} made landfall at ${island.name}. Loaded ${take} castaways (${island.survivors - island.rescued} remain).`,
               type: 'info',
             });
+
+            const remainingCap = ship.capacity - ship.load;
+
+            // If cutter still has capacity and more targets exist: route to next target
+            const otherUnevacuated = nextIslands
+              .filter((i) => i.id !== island.id && i.survivors - i.rescued > 0)
+              .map((i) => ({
+                ...i,
+                urgency: calculateUrgencyIndex(i, storms),
+              }))
+              .sort((a, b) => b.urgency - a.urgency);
+
+            if (remainingCap >= 10 && otherUnevacuated.length > 0) {
+              const nextTarget = otherUnevacuated[0];
+              const nextRoute = runAStar(
+                { x: ship.x, y: ship.y },
+                { x: nextTarget.x, y: nextTarget.y },
+                storms
+              );
+
+              ship.targetIslandId = nextTarget.id;
+              ship.path = nextRoute;
+              ship.pathIndex = 1;
+              ship.status = 'en-route';
+
+              logs.push({
+                timestamp: timestamp(),
+                message: `➡ ${ship.name} has ${remainingCap} berths free! Continuing rescue course to ${nextTarget.name}.`,
+                type: 'warning',
+              });
+            } else {
+              // Full or no nearby targets: return to designated home harbor
+              const returnPath = runAStar(
+                { x: ship.x, y: ship.y },
+                { x: ship.startX, y: ship.startY },
+                storms
+              );
+
+              ship.path = returnPath;
+              ship.pathIndex = 1;
+              ship.status = 'returning';
+
+              logs.push({
+                timestamp: timestamp(),
+                message: `🔄 ${ship.name} ${remainingCap === 0 ? '[CAPACITY FULL]' : '[LEG COMPLETE]'} — returning to home harbor with ${ship.load} souls.`,
+                type: 'info',
+              });
+            }
           } else {
             ship.status = 'idle';
           }

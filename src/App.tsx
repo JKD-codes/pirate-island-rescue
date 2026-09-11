@@ -7,6 +7,7 @@ import {
   INITIAL_SHIPS,
   INITIAL_STORMS,
   INITIAL_LOGS,
+  SCENARIO_PRESETS,
 } from './data/entities';
 import type { Island, Ship, Storm, LogEntry } from './types';
 
@@ -14,8 +15,17 @@ import { solveDispatchPlan } from './algorithms/dispatch';
 import { stepSimulation } from './algorithms/simulation';
 import { calculateUrgencyIndex } from './algorithms/urgency';
 import { runAStar } from './algorithms/astar';
+import {
+  playSonarPing,
+  playRescueBell,
+  playHazardAlert,
+  playVictoryFanfare,
+  setSoundMuted,
+} from './utils/audio';
 
 function App() {
+  const [selectedScenarioId, setSelectedScenarioId] = useState('scenario-1');
+
   const [islands, setIslands] = useState<Island[]>(() => {
     const raw = structuredClone(INITIAL_ISLANDS);
     return raw.map((isl) => ({
@@ -32,11 +42,19 @@ function App() {
     () => structuredClone(INITIAL_STORMS)
   );
 
+  const [initialSurvivors, setInitialSurvivors] = useState<number>(() =>
+    INITIAL_ISLANDS.reduce((sum, i) => sum + i.survivors, 0)
+  );
+
   const [logs, setLogs] = useState<LogEntry[]>([...INITIAL_LOGS]);
   const [isRunning, setIsRunning] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
 
-  // Refs for current state inside animation interval
+  // Track which islands have triggered evacuation bell sound
+  const evacuatedSoundPlayedRef = useRef<Set<string>>(new Set());
+
+  // Ref for current state inside animation interval
   const stateRef = useRef({ ships, islands, storms, speedMultiplier });
   useEffect(() => {
     stateRef.current = { ships, islands, storms, speedMultiplier };
@@ -50,6 +68,19 @@ function App() {
   const totalRescued = islands.reduce((sum, isl) => sum + isl.rescued, 0);
   const fleetCapacity = ships.reduce((sum, s) => sum + (s.capacity - s.load), 0);
   const activeHazards = storms.length;
+  const efficiencyScore =
+    initialSurvivors > 0
+      ? Math.min(100, Math.round((totalRescued / initialSurvivors) * 100))
+      : 100;
+
+  // ─── Sound Mute Toggle ───
+  const handleToggleMute = useCallback(() => {
+    setIsMuted((prev) => {
+      const next = !prev;
+      setSoundMuted(next);
+      return next;
+    });
+  }, []);
 
   // ─── Log Helper ───
   const addLog = useCallback(
@@ -63,7 +94,36 @@ function App() {
     []
   );
 
-  // ─── Storm Drag Handler with Dynamic Urgency & Re-routing ───
+  // ─── Scenario Switcher ───
+  const handleSelectScenario = useCallback(
+    (scenarioId: string) => {
+      const preset = SCENARIO_PRESETS.find((p) => p.id === scenarioId);
+      if (!preset) return;
+
+      setSelectedScenarioId(scenarioId);
+      setIsRunning(false);
+      evacuatedSoundPlayedRef.current.clear();
+
+      const freshIslands = structuredClone(preset.islands).map((isl) => ({
+        ...isl,
+        urgencyIndex: calculateUrgencyIndex(isl, preset.storms),
+      }));
+
+      setIslands(freshIslands);
+      setShips(structuredClone(preset.ships));
+      setStorms(structuredClone(preset.storms));
+      setInitialSurvivors(
+        freshIslands.reduce((sum, i) => sum + i.survivors, 0)
+      );
+
+      playSonarPing();
+      addLog(`🚩 Switched to [${preset.name}] — ${preset.description}`, 'info');
+      addLog(`📋 ${preset.islands.reduce((s, i) => s + i.survivors, 0)} souls awaiting extraction.`, 'warning');
+    },
+    [addLog]
+  );
+
+  // ─── Dynamic Storm Drag & Real-Time Rerouting ───
   const handleStormDrag = useCallback(
     (stormId: string, x: number, y: number) => {
       setStorms((prevStorms) => {
@@ -71,7 +131,7 @@ function App() {
           s.id === stormId ? { ...s, x, y } : s
         );
 
-        // Update live urgency scores based on new storm distance
+        // 1. Recalculate dynamic urgency scores with updated storm distance
         setIslands((prevIslands) =>
           prevIslands.map((isl) => ({
             ...isl,
@@ -79,17 +139,16 @@ function App() {
           }))
         );
 
-        // Check if any active ship route intersects the moved storm
+        // 2. Real-time dynamic rerouting for all moving vessels around new storm center
+        let reroutedAny = false;
         setShips((prevShips) =>
           prevShips.map((ship) => {
             if (ship.status === 'idle' || ship.path.length <= 1) return ship;
+            reroutedAny = true;
 
-            // Re-route on the fly around new storm positions!
             const target =
-              ship.status === 'en-route'
-                ? nextStorms && ship.targetIslandId
-                  ? islands.find((i) => i.id === ship.targetIslandId)
-                  : null
+              ship.status === 'en-route' && ship.targetIslandId
+                ? islands.find((i) => i.id === ship.targetIslandId)
                 : { x: ship.startX, y: ship.startY };
 
             if (target) {
@@ -108,6 +167,10 @@ function App() {
           })
         );
 
+        if (reroutedAny) {
+          playHazardAlert();
+        }
+
         return nextStorms;
       });
     },
@@ -116,7 +179,8 @@ function App() {
 
   // ─── Solve Dispatch (Phase 2) ───
   const handleSolve = useCallback(() => {
-    addLog('🧮 Dispatch solver initiated — computing A* routes…', 'warning');
+    playSonarPing();
+    addLog('🧮 Dispatch solver initiated — computing optimal A* routes…', 'warning');
     const result = solveDispatchPlan(islands, ships, storms);
     setShips(result.updatedShips);
     setIslands(result.updatedIslands);
@@ -128,7 +192,6 @@ function App() {
     const { ships: curShips, islands: curIslands, storms: curStorms, speedMultiplier: spd } =
       stateRef.current;
 
-    // If no ship is moving, solve first
     const hasActiveRoutes = curShips.some((s) => s.path.length > 0 && s.status !== 'idle');
     if (!hasActiveRoutes) {
       handleSolve();
@@ -138,11 +201,21 @@ function App() {
     const stepRes = stepSimulation(curShips, curIslands, curStorms, spd);
     setShips(stepRes.updatedShips);
     setIslands(stepRes.updatedIslands);
+
+    // Audio feedback for newly evacuated islands
+    stepRes.updatedIslands.forEach((isl) => {
+      if (isl.survivors - isl.rescued <= 0 && !evacuatedSoundPlayedRef.current.has(isl.id)) {
+        evacuatedSoundPlayedRef.current.add(isl.id);
+        playRescueBell();
+      }
+    });
+
     if (stepRes.logs.length > 0) {
       setLogs((prev) => [...prev, ...stepRes.logs]);
     }
     if (stepRes.isMissionComplete) {
       setIsRunning(false);
+      playVictoryFanfare();
     }
   }, [handleSolve]);
 
@@ -151,11 +224,11 @@ function App() {
     setIsRunning((prev) => {
       const next = !prev;
       if (next) {
-        // If no active routes exist yet, solve automatically on start
         const hasActiveRoutes = ships.some((s) => s.path.length > 0 && s.status !== 'idle');
         if (!hasActiveRoutes) {
           handleSolve();
         }
+        playSonarPing();
         addLog('▶ Fleet underway — full speed ahead!', 'success');
       } else {
         addLog('⏸ Fleet holding position — simulation paused.', 'warning');
@@ -164,7 +237,7 @@ function App() {
     });
   };
 
-  // ─── Simulation Tick Loop ───
+  // ─── Simulation Tick Loop (Smooth 40ms / 25 FPS) ───
   useEffect(() => {
     if (!isRunning) return;
 
@@ -180,30 +253,31 @@ function App() {
       setShips(stepRes.updatedShips);
       setIslands(stepRes.updatedIslands);
 
+      // Trigger audio bell chime on atoll clearance
+      stepRes.updatedIslands.forEach((isl) => {
+        if (isl.survivors - isl.rescued <= 0 && !evacuatedSoundPlayedRef.current.has(isl.id)) {
+          evacuatedSoundPlayedRef.current.add(isl.id);
+          playRescueBell();
+        }
+      });
+
       if (stepRes.logs.length > 0) {
         setLogs((prev) => [...prev, ...stepRes.logs]);
       }
 
       if (stepRes.isMissionComplete) {
         setIsRunning(false);
+        playVictoryFanfare();
       }
-    }, 40); // 25 fps simulation tick
+    }, 40);
 
     return () => window.clearInterval(intervalId);
   }, [isRunning]);
 
   // ─── Reset Scenario ───
   const handleReset = () => {
-    const freshIslands = structuredClone(INITIAL_ISLANDS).map((isl) => ({
-      ...isl,
-      urgencyIndex: calculateUrgencyIndex(isl, INITIAL_STORMS),
-    }));
-    setIslands(freshIslands);
-    setShips(structuredClone(INITIAL_SHIPS));
-    setStorms(structuredClone(INITIAL_STORMS));
-    setLogs([...INITIAL_LOGS]);
-    setIsRunning(false);
-    addLog('♻ Scenario reset to initial state.', 'info');
+    handleSelectScenario(selectedScenarioId);
+    addLog('♻ Scenario reset to initial positions.', 'info');
   };
 
   return (
@@ -213,6 +287,11 @@ function App() {
         totalRescued={totalRescued}
         fleetCapacity={fleetCapacity}
         activeHazards={activeHazards}
+        efficiencyScore={efficiencyScore}
+        selectedScenarioId={selectedScenarioId}
+        onSelectScenario={handleSelectScenario}
+        isMuted={isMuted}
+        onToggleMute={handleToggleMute}
       />
       <div className="flex-1 flex min-h-0">
         <RadarCanvas

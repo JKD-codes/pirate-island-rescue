@@ -163,3 +163,114 @@ export const SHIP_COLORS = [
   '#a78bfa', // violet
   '#34d399', // emerald
 ];
+
+// ─── Judge Scenario Presets ───
+export interface ScenarioPreset {
+  id: string;
+  name: string;
+  tag: string;
+  badgeColor: string;
+  description: string;
+  islands: Island[];
+  ships: Ship[];
+  storms: Storm[];
+}
+
+export const SCENARIO_PRESETS: ScenarioPreset[] = [
+  {
+    id: 'scenario-1',
+    name: 'Scenario 1: Default Archipelago',
+    tag: 'Baseline',
+    badgeColor: 'border-sky-500/40 text-sky-300 bg-sky-950/40',
+    description: 'Baseline layout from BRAIN.md — 148 castaways, 2 Category-5 storms, 3 cutters.',
+    islands: INITIAL_ISLANDS,
+    ships: INITIAL_SHIPS,
+    storms: INITIAL_STORMS,
+  },
+  {
+    id: 'scenario-2',
+    name: 'Scenario 2: Typhoon Maelstrom Direct Hit',
+    tag: 'Hazard Drill',
+    badgeColor: 'border-red-500/40 text-red-300 bg-red-950/40',
+    description: 'Cyclone Maelstrom relocated to (200, 150) blocking Skull Rock corridor. Tests A* obstacle avoidance.',
+    islands: INITIAL_ISLANDS,
+    ships: INITIAL_SHIPS,
+    storms: [
+      {
+        id: 'storm-1',
+        name: 'Cyclone Maelstrom [DIRECT HIT]',
+        x: 200,
+        y: 150,
+        radius: 95,
+      },
+      {
+        id: 'storm-2',
+        name: 'Tempest Maw',
+        x: 560,
+        y: 320,
+        radius: 75,
+      },
+    ],
+  },
+  {
+    id: 'scenario-3',
+    name: 'Scenario 3: Fleet Overload',
+    tag: 'Stress Test',
+    badgeColor: 'border-amber-500/40 text-amber-300 bg-amber-950/40',
+    description: '350 castaways across 5 atolls (60+ per island). Showcases multi-ship split rescues & greedy round-trips.',
+    islands: [
+      {
+        id: 'isl-1',
+        name: 'Skull Rock',
+        x: 140,
+        y: 150,
+        survivors: 75,
+        rescued: 0,
+        triage: 'Critical',
+        urgencyIndex: 0,
+      },
+      {
+        id: 'isl-2',
+        name: 'Isla de Muerta',
+        x: 260,
+        y: 460,
+        survivors: 65,
+        rescued: 0,
+        triage: 'Urgent',
+        urgencyIndex: 0,
+      },
+      {
+        id: 'isl-3',
+        name: "Siren's Cove",
+        x: 500,
+        y: 140,
+        survivors: 60,
+        rescued: 0,
+        triage: 'Stable',
+        urgencyIndex: 0,
+      },
+      {
+        id: 'isl-4',
+        name: 'Kraken Shoals',
+        x: 680,
+        y: 440,
+        survivors: 80,
+        rescued: 0,
+        triage: 'Critical',
+        urgencyIndex: 0,
+      },
+      {
+        id: 'isl-5',
+        name: 'Tortuga Shallows',
+        x: 420,
+        y: 340,
+        survivors: 70,
+        rescued: 0,
+        triage: 'Urgent',
+        urgencyIndex: 0,
+      },
+    ],
+    ships: INITIAL_SHIPS,
+    storms: INITIAL_STORMS,
+  },
+];
