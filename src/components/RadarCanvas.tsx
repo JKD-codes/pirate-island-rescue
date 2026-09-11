@@ -7,6 +7,10 @@ interface RadarCanvasProps {
   ships: Ship[];
   storms: Storm[];
   onStormDrag: (stormId: string, x: number, y: number) => void;
+  isManualDispatchMode?: boolean;
+  selectedShipId?: string | null;
+  onSelectShip?: (shipId: string) => void;
+  onSelectIsland?: (island: Island) => void;
 }
 
 export default function RadarCanvas({
@@ -14,6 +18,10 @@ export default function RadarCanvas({
   ships,
   storms,
   onStormDrag,
+  isManualDispatchMode = false,
+  selectedShipId = null,
+  onSelectShip,
+  onSelectIsland,
 }: RadarCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -68,6 +76,19 @@ export default function RadarCanvas({
           viewBox 800×600
         </div>
 
+        {/* Manual Dispatch Mode Status Banner */}
+        {isManualDispatchMode && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 px-3 py-0.5 bg-amber-500/20 border border-amber-500/50 rounded-full text-[9px] font-mono font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_15px_rgba(245,158,11,0.2)] animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span>MANUAL DISPATCH:</span>
+            <span className="text-slate-200">
+              {selectedShipId
+                ? 'Select destination atoll on map'
+                : 'Click an idle cutter to select'}
+            </span>
+          </div>
+        )}
+
         <svg
           ref={svgRef}
           viewBox="0 0 800 600"
@@ -90,6 +111,11 @@ export default function RadarCanvas({
                 <stop offset="100%" stopColor={TRIAGE_COLORS[t].bg} stopOpacity="0" />
               </radialGradient>
             ))}
+            {/* Evacuated island glow */}
+            <radialGradient id="glow-evacuated">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+            </radialGradient>
             {/* Scan line gradient */}
             <linearGradient id="scanLine" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#38bdf8" stopOpacity="0" />
@@ -241,112 +267,312 @@ export default function RadarCanvas({
             </g>
           ))}
 
-          {/* ─── Islands ─── */}
+          {/* ─── Islands (Voyage Constraint 3: 3 Distinct Lifecycle States) ─── */}
           {islands.map((island) => {
             const tc = TRIAGE_COLORS[island.triage];
-            const remaining = island.survivors - island.rescued;
-            return (
-              <g key={island.id}>
-                {/* Ambient glow */}
-                <circle
-                  cx={island.x}
-                  cy={island.y}
-                  r={32}
-                  fill={`url(#glow-${island.triage})`}
-                />
-                {/* Island shape — hexagonal reef */}
-                <polygon
-                  points={hexPoints(island.x, island.y, 14)}
-                  fill="#0f1a2e"
-                  stroke={tc.border}
-                  strokeWidth="1.5"
-                  strokeOpacity="0.7"
-                />
-                {/* Palm/skull icon */}
-                <text
-                  x={island.x}
-                  y={island.y + 4}
-                  textAnchor="middle"
-                  className="text-[11px]"
-                  fill={tc.text}
-                >
-                  🏝
-                </text>
-                {/* Name */}
-                <text
-                  x={island.x}
-                  y={island.y + 28}
-                  textAnchor="middle"
-                  className="text-[9px] font-semibold"
-                  fill={tc.text}
-                >
-                  {island.name}
-                </text>
-                {/* Survivor badge */}
-                <rect
-                  x={island.x - 18}
-                  y={island.y + 31}
-                  width={36}
-                  height={13}
-                  rx={3}
-                  fill={tc.bg}
-                  fillOpacity="0.2"
-                  stroke={tc.border}
-                  strokeWidth="0.7"
-                />
-                <text
-                  x={island.x}
-                  y={island.y + 41}
-                  textAnchor="middle"
-                  className="text-[8px] font-mono font-bold"
-                  fill={tc.text}
-                >
-                  {remaining > 0 ? `👥 ${remaining}` : '✓ Clear'}
-                </text>
-                {/* Triage tag */}
-                <rect
-                  x={island.x + 14}
-                  y={island.y - 22}
-                  width={island.triage.length * 5.5 + 8}
-                  height={12}
-                  rx={2}
-                  fill={tc.bg}
-                  fillOpacity="0.25"
-                  stroke={tc.border}
-                  strokeWidth="0.6"
-                />
-                <text
-                  x={island.x + 18}
-                  y={island.y - 13}
-                  className="text-[7px] font-mono font-bold uppercase"
-                  fill={tc.text}
-                >
-                  {island.triage}
-                </text>
+            const remaining = Math.max(0, island.survivors - island.rescued);
 
-                {/* Algorithmic Urgency Index Badge (P_i) */}
-                {island.urgencyIndex !== 0 && isFinite(island.urgencyIndex) && (
-                  <g>
+            // Determine Lifecycle State: 'pending' | 'in-progress' | 'evacuated'
+            const isEnRoute = ships.some(
+              (s) => s.targetIslandId === island.id && (s.status === 'en-route' || s.status === 'loading')
+            );
+            const lifecycle: 'pending' | 'in-progress' | 'evacuated' =
+              remaining <= 0
+                ? 'evacuated'
+                : isEnRoute || island.status === 'in-progress'
+                ? 'in-progress'
+                : 'pending';
+
+            const isClickable =
+              isManualDispatchMode && selectedShipId && lifecycle !== 'evacuated';
+
+            return (
+              <g
+                key={island.id}
+                className={isClickable ? 'cursor-pointer' : undefined}
+                onClick={() => {
+                  if (isClickable && onSelectIsland) {
+                    onSelectIsland(island);
+                  }
+                }}
+              >
+                {/* 1. EVACUATED STATE */}
+                {lifecycle === 'evacuated' && (
+                  <>
+                    <circle cx={island.x} cy={island.y} r={32} fill="url(#glow-evacuated)" />
+                    <circle
+                      cx={island.x}
+                      cy={island.y}
+                      r={18}
+                      fill="#064e3b33"
+                      stroke="#10b981"
+                      strokeWidth="1.5"
+                      strokeOpacity="0.8"
+                    />
+                    <text
+                      x={island.x}
+                      y={island.y + 4}
+                      textAnchor="middle"
+                      className="text-[12px] font-bold"
+                      fill="#34d399"
+                    >
+                      ✓
+                    </text>
+                    <text
+                      x={island.x}
+                      y={island.y + 28}
+                      textAnchor="middle"
+                      className="text-[9px] font-semibold"
+                      fill="#34d399"
+                    >
+                      {island.name}
+                    </text>
+                    {/* Status tag: SAFE (0 STRANDED) */}
                     <rect
-                      x={island.x - 48}
-                      y={island.y - 22}
-                      width={42}
+                      x={island.x - 38}
+                      y={island.y + 32}
+                      width={76}
                       height={12}
                       rx={2}
-                      fill="#0f172a"
-                      stroke="#f59e0b"
+                      fill="#064e3b44"
+                      stroke="#10b981"
+                      strokeWidth="0.8"
+                    />
+                    <text
+                      x={island.x}
+                      y={island.y + 41}
+                      textAnchor="middle"
+                      className="text-[7.5px] font-mono font-bold"
+                      fill="#34d399"
+                    >
+                      SAFE (0 STRANDED)
+                    </text>
+                  </>
+                )}
+
+                {/* 2. IN-PROGRESS STATE */}
+                {lifecycle === 'in-progress' && (
+                  <>
+                    <circle cx={island.x} cy={island.y} r={32} fill={`url(#glow-${island.triage})`} />
+                    {/* Rotating blue dashed perimeter ring */}
+                    <circle
+                      cx={island.x}
+                      cy={island.y}
+                      r={24}
+                      fill="none"
+                      stroke="#38bdf8"
+                      strokeWidth="1.8"
+                      strokeDasharray="6 3"
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from={`0 ${island.x} ${island.y}`}
+                        to={`360 ${island.x} ${island.y}`}
+                        dur="5s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                    {/* Reef hex */}
+                    <polygon
+                      points={hexPoints(island.x, island.y, 14)}
+                      fill="#0f1a2e"
+                      stroke="#38bdf8"
+                      strokeWidth="1.5"
+                    />
+                    <text
+                      x={island.x}
+                      y={island.y + 4}
+                      textAnchor="middle"
+                      className="text-[11px]"
+                      fill="#38bdf8"
+                    >
+                      🏝
+                    </text>
+                    <text
+                      x={island.x}
+                      y={island.y + 28}
+                      textAnchor="middle"
+                      className="text-[9px] font-semibold"
+                      fill="#38bdf8"
+                    >
+                      {island.name}
+                    </text>
+                    {/* Status tag: RESCUE IN TRANSIT */}
+                    <rect
+                      x={island.x - 44}
+                      y={island.y + 32}
+                      width={88}
+                      height={13}
+                      rx={2}
+                      fill="#0284c733"
+                      stroke="#38bdf8"
+                      strokeWidth="0.8"
+                    />
+                    <text
+                      x={island.x}
+                      y={island.y + 42}
+                      textAnchor="middle"
+                      className="text-[7.5px] font-mono font-bold uppercase tracking-wider"
+                      fill="#7dd3fc"
+                    >
+                      RESCUE IN TRANSIT
+                    </text>
+                    {/* Remaining badge */}
+                    <rect
+                      x={island.x + 14}
+                      y={island.y - 22}
+                      width={38}
+                      height={12}
+                      rx={2}
+                      fill="#0369a144"
+                      stroke="#38bdf8"
                       strokeWidth="0.7"
                     />
                     <text
-                      x={island.x - 27}
+                      x={island.x + 33}
                       y={island.y - 13}
                       textAnchor="middle"
                       className="text-[7px] font-mono font-bold"
-                      fill="#fbbf24"
+                      fill="#38bdf8"
                     >
-                      P:{island.urgencyIndex.toFixed(1)}
+                      👥 {remaining}
                     </text>
-                  </g>
+                  </>
+                )}
+
+                {/* 3. PENDING STATE */}
+                {lifecycle === 'pending' && (
+                  <>
+                    <circle cx={island.x} cy={island.y} r={32} fill={`url(#glow-${island.triage})`} />
+                    {/* Pulsing amber border */}
+                    <circle
+                      cx={island.x}
+                      cy={island.y}
+                      r={22}
+                      fill="none"
+                      stroke="#f59e0b"
+                      strokeWidth="1.5"
+                    >
+                      <animate
+                        attributeName="stroke-opacity"
+                        values="0.3;0.9;0.3"
+                        dur="1.8s"
+                        repeatCount="indefinite"
+                      />
+                      <animate
+                        attributeName="r"
+                        values="21;24;21"
+                        dur="1.8s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                    {/* Reef hex */}
+                    <polygon
+                      points={hexPoints(island.x, island.y, 14)}
+                      fill="#0f1a2e"
+                      stroke={tc.border}
+                      strokeWidth="1.5"
+                    />
+                    <text
+                      x={island.x}
+                      y={island.y + 4}
+                      textAnchor="middle"
+                      className="text-[11px]"
+                      fill={tc.text}
+                    >
+                      🏝
+                    </text>
+                    <text
+                      x={island.x}
+                      y={island.y + 28}
+                      textAnchor="middle"
+                      className="text-[9px] font-semibold"
+                      fill={tc.text}
+                    >
+                      {island.name}
+                    </text>
+                    {/* Survivor headcount badge highlighted */}
+                    <rect
+                      x={island.x - 20}
+                      y={island.y + 31}
+                      width={40}
+                      height={13}
+                      rx={3}
+                      fill={tc.bg}
+                      fillOpacity="0.25"
+                      stroke={tc.border}
+                      strokeWidth="0.9"
+                    />
+                    <text
+                      x={island.x}
+                      y={island.y + 41}
+                      textAnchor="middle"
+                      className="text-[8px] font-mono font-bold"
+                      fill={tc.text}
+                    >
+                      👥 {remaining} left
+                    </text>
+                    {/* Triage tag */}
+                    <rect
+                      x={island.x + 14}
+                      y={island.y - 22}
+                      width={island.triage.length * 5.5 + 8}
+                      height={12}
+                      rx={2}
+                      fill={tc.bg}
+                      fillOpacity="0.25"
+                      stroke={tc.border}
+                      strokeWidth="0.6"
+                    />
+                    <text
+                      x={island.x + 18}
+                      y={island.y - 13}
+                      className="text-[7px] font-mono font-bold uppercase"
+                      fill={tc.text}
+                    >
+                      {island.triage}
+                    </text>
+
+                    {/* Algorithmic Urgency Index Badge (P_i) */}
+                    {island.urgencyIndex !== 0 && isFinite(island.urgencyIndex) && (
+                      <g>
+                        <rect
+                          x={island.x - 48}
+                          y={island.y - 22}
+                          width={42}
+                          height={12}
+                          rx={2}
+                          fill="#0f172a"
+                          stroke="#f59e0b"
+                          strokeWidth="0.7"
+                        />
+                        <text
+                          x={island.x - 27}
+                          y={island.y - 13}
+                          textAnchor="middle"
+                          className="text-[7px] font-mono font-bold"
+                          fill="#fbbf24"
+                        >
+                          P:{island.urgencyIndex.toFixed(1)}
+                        </text>
+                      </g>
+                    )}
+                  </>
+                )}
+
+                {/* Manual Dispatch Target Reticle on hover/clickable */}
+                {isClickable && (
+                  <circle
+                    cx={island.x}
+                    cy={island.y}
+                    r={34}
+                    fill="none"
+                    stroke="#fbbf24"
+                    strokeWidth="1.5"
+                    strokeDasharray="4 3"
+                    className="animate-pulse"
+                  />
                 )}
               </g>
             );
@@ -447,6 +673,9 @@ export default function RadarCanvas({
           {ships.map((ship, idx) => {
             const color = SHIP_COLORS[idx % SHIP_COLORS.length];
             const loadPct = ship.capacity > 0 ? ship.load / ship.capacity : 0;
+            const isSelected = selectedShipId === ship.id;
+            const isIdle = ship.status === 'idle';
+            const canSelect = isManualDispatchMode && isIdle;
 
             // Calculate heading rotation towards next waypoint
             let headingAngle = 0;
@@ -459,7 +688,48 @@ export default function RadarCanvas({
             }
 
             return (
-              <g key={ship.id}>
+              <g
+                key={ship.id}
+                className={canSelect ? 'cursor-pointer' : undefined}
+                onClick={() => {
+                  if (canSelect && onSelectShip) {
+                    onSelectShip(ship.id);
+                  }
+                }}
+              >
+                {/* Selected Cutter Targeting Reticle */}
+                {isSelected && (
+                  <g>
+                    <circle
+                      cx={ship.x}
+                      cy={ship.y}
+                      r={26}
+                      fill="none"
+                      stroke="#fbbf24"
+                      strokeWidth="1.6"
+                      strokeDasharray="4 2"
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from={`0 ${ship.x} ${ship.y}`}
+                        to={`360 ${ship.x} ${ship.y}`}
+                        dur="4s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                    <text
+                      x={ship.x}
+                      y={ship.y - 34}
+                      textAnchor="middle"
+                      className="text-[7.5px] font-mono font-bold uppercase tracking-wider"
+                      fill="#fbbf24"
+                    >
+                      [SELECTED]
+                    </text>
+                  </g>
+                )}
+
                 {/* Range ring */}
                 <circle
                   cx={ship.x}
@@ -477,9 +747,9 @@ export default function RadarCanvas({
                   <polygon
                     points={shipShape(ship.x, ship.y)}
                     fill={color}
-                    fillOpacity="0.3"
-                    stroke={color}
-                    strokeWidth="1.4"
+                    fillOpacity={isSelected ? 0.5 : 0.3}
+                    stroke={isSelected ? '#fbbf24' : color}
+                    strokeWidth={isSelected ? 2 : 1.4}
                   />
                   {/* Blinking beacon */}
                   <circle
@@ -497,13 +767,13 @@ export default function RadarCanvas({
                   </circle>
                 </g>
 
-                {/* Ship name & status badge */}
+                {/* Ship name */}
                 <text
                   x={ship.x}
                   y={ship.y - 24}
                   textAnchor="middle"
                   className="text-[8px] font-mono font-semibold"
-                  fill={color}
+                  fill={isSelected ? '#fbbf24' : color}
                 >
                   {ship.name}
                 </text>
@@ -598,7 +868,6 @@ function hexPoints(cx: number, cy: number, r: number): string {
 }
 
 function shipShape(cx: number, cy: number): string {
-  // Simple diamond / ship silhouette
   return [
     `${cx},${cy - 10}`,
     `${cx + 7},${cy + 2}`,

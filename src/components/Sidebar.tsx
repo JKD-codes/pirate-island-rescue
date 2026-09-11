@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   FastForward,
   StepForward,
+  Radio,
 } from 'lucide-react';
 import type { Island, Ship as ShipT, LogEntry } from '../types';
 import { TRIAGE_COLORS, SHIP_COLORS } from '../data/entities';
@@ -26,6 +27,7 @@ interface SidebarProps {
   onSolve: () => void;
   onToggleSimulation: () => void;
   onReset: () => void;
+  onEmergencyPing: () => void;
 }
 
 const LOG_TYPE_COLORS = {
@@ -53,6 +55,7 @@ export default function Sidebar({
   onSolve,
   onToggleSimulation,
   onReset,
+  onEmergencyPing,
 }: SidebarProps) {
   const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -121,12 +124,21 @@ export default function Sidebar({
           <button
             onClick={onReset}
             title="Reset Scenario"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-mono bg-slate-850 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-mono bg-slate-850 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all cursor-pointer"
           >
             <RotateCcw size={11} />
             Reset
           </button>
         </div>
+
+        {/* Dynamic Crisis Trigger (Voyage Constraint 2) */}
+        <button
+          onClick={onEmergencyPing}
+          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-[10.5px] font-bold font-mono uppercase tracking-wider bg-red-950/40 text-red-300 border border-red-500/40 hover:bg-red-900/40 hover:border-red-400 active:scale-95 transition-all duration-150 cursor-pointer shadow-[0_0_12px_rgba(239,68,68,0.15)]"
+        >
+          <Radio size={13} className="text-red-400 animate-pulse" />
+          Emergency Radio Ping (S.O.S.)
+        </button>
       </div>
 
       {/* ─── Fleet Manifest ─── */}

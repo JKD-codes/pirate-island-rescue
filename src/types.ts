@@ -4,6 +4,8 @@ export type TriageLevel = 'Critical' | 'Urgent' | 'Stable';
 
 export type ShipStatus = 'idle' | 'en-route' | 'loading' | 'returning';
 
+export type IslandStatus = 'pending' | 'in-progress' | 'evacuated';
+
 export interface Island {
   id: string;
   name: string;
@@ -13,6 +15,7 @@ export interface Island {
   rescued: number;
   triage: TriageLevel;
   urgencyIndex: number;
+  status: IslandStatus;
 }
 
 export interface Ship {
@@ -24,6 +27,7 @@ export interface Ship {
   startY: number;
   capacity: number;
   load: number;
+  targetLoad?: number;
   speed: number;
   status: ShipStatus;
   targetIslandId: string | null;

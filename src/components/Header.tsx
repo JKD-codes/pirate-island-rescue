@@ -21,6 +21,8 @@ interface HeaderProps {
   efficiencyScore: number;
   selectedScenarioId: string;
   onSelectScenario: (id: string) => void;
+  isManualDispatchMode: boolean;
+  onToggleManualDispatch: () => void;
   isMuted: boolean;
   onToggleMute: () => void;
 }
@@ -33,6 +35,8 @@ export default function Header({
   efficiencyScore,
   selectedScenarioId,
   onSelectScenario,
+  isManualDispatchMode,
+  onToggleManualDispatch,
   isMuted,
   onToggleMute,
 }: HeaderProps) {
@@ -99,27 +103,47 @@ export default function Header({
         </div>
       </div>
 
-      {/* ─── Center: Judge Preset Scenario Selector ─── */}
-      <div className="flex items-center gap-1.5 bg-slate-900/90 border border-amber-500/25 rounded-md px-2.5 py-1 shadow-sm">
-        <Layers size={13} className="text-amber-400" />
-        <span className="text-[10px] font-mono font-bold text-amber-300 uppercase tracking-wider hidden sm:inline">
-          Scenario:
-        </span>
-        <select
-          value={selectedScenarioId}
-          onChange={(e) => onSelectScenario(e.target.value)}
-          className="bg-transparent text-[11px] font-mono text-slate-200 outline-none cursor-pointer pr-1"
+      {/* ─── Center: Presets & Manual Dispatch Toggle ─── */}
+      <div className="flex items-center gap-2">
+        {/* Scenario Selector */}
+        <div className="flex items-center gap-1.5 bg-slate-900/90 border border-amber-500/25 rounded-md px-2.5 py-1 shadow-sm">
+          <Layers size={13} className="text-amber-400" />
+          <span className="text-[10px] font-mono font-bold text-amber-300 uppercase tracking-wider hidden sm:inline">
+            Scenario:
+          </span>
+          <select
+            value={selectedScenarioId}
+            onChange={(e) => onSelectScenario(e.target.value)}
+            className="bg-transparent text-[11px] font-mono text-slate-200 outline-none cursor-pointer pr-1"
+          >
+            {SCENARIO_PRESETS.map((preset) => (
+              <option
+                key={preset.id}
+                value={preset.id}
+                className="bg-[#0b1329] text-slate-200"
+              >
+                {preset.name} [{preset.tag}]
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Manual Dispatch Mode Button */}
+        <button
+          onClick={onToggleManualDispatch}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10.5px] font-mono font-bold uppercase tracking-wider border transition-all cursor-pointer ${
+            isManualDispatchMode
+              ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+              : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+          }`}
         >
-          {SCENARIO_PRESETS.map((preset) => (
-            <option
-              key={preset.id}
-              value={preset.id}
-              className="bg-[#0b1329] text-slate-200"
-            >
-              {preset.name} [{preset.tag}]
-            </option>
-          ))}
-        </select>
+          <span
+            className={`w-2 h-2 rounded-full ${
+              isManualDispatchMode ? 'bg-amber-400 animate-ping' : 'bg-slate-600'
+            }`}
+          />
+          <span>Manual Dispatch: {isManualDispatchMode ? 'ON' : 'OFF'}</span>
+        </button>
       </div>
 
       {/* ─── Right: Telemetry chips + Mute Button ─── */}

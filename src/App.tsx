@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import Header from './components/Header';
 import RadarCanvas from './components/RadarCanvas';
 import Sidebar from './components/Sidebar';
+import ManualDispatchModal from './components/ManualDispatchModal';
 import {
   INITIAL_ISLANDS,
   INITIAL_SHIPS,
@@ -50,6 +51,12 @@ function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+
+  // Manual Dispatch State (Requirement 1)
+  const [isManualDispatchMode, setIsManualDispatchMode] = useState(false);
+  const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
+  const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [manualTargetIsland, setManualTargetIsland] = useState<Island | null>(null);
 
   // Track which islands have triggered evacuation bell sound
   const evacuatedSoundPlayedRef = useRef<Set<string>>(new Set());
@@ -102,6 +109,8 @@ function App() {
 
       setSelectedScenarioId(scenarioId);
       setIsRunning(false);
+      setSelectedShipId(null);
+      setManualModalOpen(false);
       evacuatedSoundPlayedRef.current.clear();
 
       const freshIslands = structuredClone(preset.islands).map((isl) => ({
@@ -118,10 +127,178 @@ function App() {
 
       playSonarPing();
       addLog(`🚩 Switched to [${preset.name}] — ${preset.description}`, 'info');
-      addLog(`📋 ${preset.islands.reduce((s, i) => s + i.survivors, 0)} souls awaiting extraction.`, 'warning');
+      addLog(`📋 ${freshIslands.reduce((s, i) => s + i.survivors, 0)} souls awaiting extraction.`, 'warning');
     },
     [addLog]
   );
+
+  // ─── Manual Dispatch Mode Toggle (Requirement 1) ───
+  const handleToggleManualDispatch = useCallback(() => {
+    setIsManualDispatchMode((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSelectedShipId(null);
+        setManualModalOpen(false);
+        addLog('⏹ Manual Dispatch Mode deactivated.', 'info');
+      } else {
+        playSonarPing();
+        addLog('🎯 Manual Dispatch Mode ACTIVATED: Select an idle cutter, then choose a target atoll.', 'warning');
+      }
+      return next;
+    });
+  }, [addLog]);
+
+  const handleSelectShip = useCallback(
+    (shipId: string) => {
+      setSelectedShipId(shipId);
+      const ship = ships.find((s) => s.id === shipId);
+      if (ship) {
+        playSonarPing();
+        addLog(`🎯 Cutter selected: [${ship.name}] (Capacity: ${ship.capacity - ship.load} free) — Click target atoll on map.`, 'info');
+      }
+    },
+    [ships, addLog]
+  );
+
+  const handleSelectIsland = useCallback(
+    (island: Island) => {
+      if (!selectedShipId) return;
+      setManualTargetIsland(island);
+      setManualModalOpen(true);
+    },
+    [selectedShipId]
+  );
+
+  const handleConfirmManualDispatch = useCallback(
+    (shipId: string, islandId: string, castaways: number) => {
+      const ship = ships.find((s) => s.id === shipId);
+      const island = islands.find((i) => i.id === islandId);
+      if (!ship || !island) return;
+
+      const path = runAStar({ x: ship.x, y: ship.y }, { x: island.x, y: island.y }, storms);
+
+      setShips((prev) =>
+        prev.map((s) =>
+          s.id === shipId
+            ? {
+                ...s,
+                targetIslandId: islandId,
+                path,
+                pathIndex: 0,
+                status: 'en-route',
+                targetLoad: castaways,
+              }
+            : s
+        )
+      );
+
+      setIslands((prev) =>
+        prev.map((isl) =>
+          isl.id === islandId
+            ? { ...isl, status: 'in-progress' }
+            : isl
+        )
+      );
+
+      playSonarPing();
+      addLog(`📋 [MANUAL DISPATCH] ${ship.name} chartered to ${island.name} for ${castaways} castaways!`, 'success');
+      setManualModalOpen(false);
+      setSelectedShipId(null);
+    },
+    [ships, islands, storms, addLog]
+  );
+
+  // ─── Dynamic Crisis Trigger (Requirement 3: Voyage Constraint 2) ───
+  const handleEmergencyPing = useCallback(() => {
+    playHazardAlert();
+
+    // 1. Spawns 15 extra survivors on a stable atoll ("New Wreck Discovered!")
+    const targetIsland =
+      islands.find((i) => i.triage === 'Stable') ||
+      [...islands].sort((a, b) => (a.survivors - a.rescued) - (b.survivors - b.rescued))[0];
+
+    const targetIslandId = targetIsland ? targetIsland.id : 'isl-3';
+    const islandName = targetIsland ? targetIsland.name : "Siren's Cove";
+
+    // 2. Shifts one storm center 50px closer to the fleet harbor (60, 80)
+    let shiftedStormName = '';
+    const nextStorms = storms.map((s, idx) => {
+      if (idx === 0) {
+        shiftedStormName = s.name;
+        const dx = 60 - s.x;
+        const dy = 80 - s.y;
+        const d = Math.hypot(dx, dy) || 1;
+        return {
+          ...s,
+          x: Math.max(100, Math.min(700, Math.round(s.x + (dx / d) * 50))),
+          y: Math.max(100, Math.min(500, Math.round(s.y + (dy / d) * 50))),
+        };
+      }
+      return s;
+    });
+
+    setStorms(nextStorms);
+
+    // 3. Update islands: +15 survivors on target island and recalculate urgency
+    setIslands((prev) =>
+      prev.map((isl) => {
+        const extra = isl.id === targetIslandId ? 15 : 0;
+        const newSurvivors = isl.survivors + extra;
+        const updated: Island = {
+          ...isl,
+          survivors: newSurvivors,
+          status: newSurvivors - isl.rescued > 0 ? (isl.status === 'evacuated' ? 'pending' : isl.status) : 'evacuated',
+        };
+        return {
+          ...updated,
+          urgencyIndex: calculateUrgencyIndex(updated, nextStorms),
+        };
+      })
+    );
+
+    setInitialSurvivors((prev) => prev + 15);
+
+    // 4. Log urgent red telemetry events
+    addLog(
+      `🚨 [EMERGENCY MAYDAY S.O.S.] Sunken wreckage discovered at ${islandName}! +15 castaways stranded!`,
+      'critical'
+    );
+    addLog(
+      `🌀 ${shiftedStormName} gale front accelerated 50px closer to fleet staging sector!`,
+      'warning'
+    );
+
+    // 5. Dynamic course recalculation for all active cutters around shifted storm
+    let rerouted = false;
+    setShips((prev) =>
+      prev.map((ship) => {
+        if (ship.status === 'idle' || ship.path.length <= 1) return ship;
+        rerouted = true;
+        const target =
+          ship.status === 'en-route' && ship.targetIslandId
+            ? islands.find((i) => i.id === ship.targetIslandId)
+            : { x: ship.startX, y: ship.startY };
+
+        if (target) {
+          const newRoute = runAStar(
+            { x: ship.x, y: ship.y },
+            { x: target.x, y: target.y },
+            nextStorms
+          );
+          return {
+            ...ship,
+            path: newRoute,
+            pathIndex: 0,
+          };
+        }
+        return ship;
+      })
+    );
+
+    if (rerouted) {
+      addLog('⚡ Dynamic A* course correction: active cutters maneuvering around advancing storm radius!', 'warning');
+    }
+  }, [islands, storms, addLog]);
 
   // ─── Dynamic Storm Drag & Real-Time Rerouting ───
   const handleStormDrag = useCallback(
@@ -290,6 +467,8 @@ function App() {
         efficiencyScore={efficiencyScore}
         selectedScenarioId={selectedScenarioId}
         onSelectScenario={handleSelectScenario}
+        isManualDispatchMode={isManualDispatchMode}
+        onToggleManualDispatch={handleToggleManualDispatch}
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
       />
@@ -299,6 +478,10 @@ function App() {
           ships={ships}
           storms={storms}
           onStormDrag={handleStormDrag}
+          isManualDispatchMode={isManualDispatchMode}
+          selectedShipId={selectedShipId}
+          onSelectShip={handleSelectShip}
+          onSelectIsland={handleSelectIsland}
         />
         <Sidebar
           ships={ships}
@@ -311,8 +494,22 @@ function App() {
           onSolve={handleSolve}
           onToggleSimulation={handleToggleSimulation}
           onReset={handleReset}
+          onEmergencyPing={handleEmergencyPing}
         />
       </div>
+
+      {/* Interactive Manual Dispatch Popover Modal */}
+      <ManualDispatchModal
+        isOpen={manualModalOpen}
+        ship={ships.find((s) => s.id === selectedShipId) || null}
+        island={manualTargetIsland}
+        storms={storms}
+        onConfirm={handleConfirmManualDispatch}
+        onClose={() => {
+          setManualModalOpen(false);
+          setSelectedShipId(null);
+        }}
+      />
     </div>
   );
 }

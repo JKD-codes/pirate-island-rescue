@@ -11,6 +11,7 @@ export const INITIAL_ISLANDS: Island[] = [
     rescued: 0,
     triage: 'Critical',
     urgencyIndex: 0,
+    status: 'pending',
   },
   {
     id: 'isl-2',
@@ -21,6 +22,7 @@ export const INITIAL_ISLANDS: Island[] = [
     rescued: 0,
     triage: 'Urgent',
     urgencyIndex: 0,
+    status: 'pending',
   },
   {
     id: 'isl-3',
@@ -31,6 +33,7 @@ export const INITIAL_ISLANDS: Island[] = [
     rescued: 0,
     triage: 'Stable',
     urgencyIndex: 0,
+    status: 'pending',
   },
   {
     id: 'isl-4',
@@ -41,6 +44,7 @@ export const INITIAL_ISLANDS: Island[] = [
     rescued: 0,
     triage: 'Critical',
     urgencyIndex: 0,
+    status: 'pending',
   },
   {
     id: 'isl-5',
@@ -51,6 +55,7 @@ export const INITIAL_ISLANDS: Island[] = [
     rescued: 0,
     triage: 'Urgent',
     urgencyIndex: 0,
+    status: 'pending',
   },
 ];
 
@@ -228,6 +233,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
         rescued: 0,
         triage: 'Critical',
         urgencyIndex: 0,
+        status: 'pending',
       },
       {
         id: 'isl-2',
@@ -238,6 +244,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
         rescued: 0,
         triage: 'Urgent',
         urgencyIndex: 0,
+        status: 'pending',
       },
       {
         id: 'isl-3',
@@ -248,6 +255,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
         rescued: 0,
         triage: 'Stable',
         urgencyIndex: 0,
+        status: 'pending',
       },
       {
         id: 'isl-4',
@@ -258,6 +266,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
         rescued: 0,
         triage: 'Critical',
         urgencyIndex: 0,
+        status: 'pending',
       },
       {
         id: 'isl-5',
@@ -268,6 +277,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
         rescued: 0,
         triage: 'Urgent',
         urgencyIndex: 0,
+        status: 'pending',
       },
     ],
     ships: INITIAL_SHIPS,
