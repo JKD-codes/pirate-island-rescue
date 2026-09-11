@@ -323,6 +323,70 @@ export default function RadarCanvas({
                 >
                   {island.triage}
                 </text>
+
+                {/* Algorithmic Urgency Index Badge (P_i) */}
+                {island.urgencyIndex !== 0 && isFinite(island.urgencyIndex) && (
+                  <g>
+                    <rect
+                      x={island.x - 48}
+                      y={island.y - 22}
+                      width={42}
+                      height={12}
+                      rx={2}
+                      fill="#0f172a"
+                      stroke="#f59e0b"
+                      strokeWidth="0.7"
+                    />
+                    <text
+                      x={island.x - 27}
+                      y={island.y - 13}
+                      textAnchor="middle"
+                      className="text-[7px] font-mono font-bold"
+                      fill="#fbbf24"
+                    >
+                      P:{island.urgencyIndex.toFixed(1)}
+                    </text>
+                  </g>
+                )}
+              </g>
+            );
+          })}
+
+          {/* ─── Staging Docks (Home Ports) ─── */}
+          {ships.map((ship, idx) => {
+            const color = SHIP_COLORS[idx % SHIP_COLORS.length];
+            return (
+              <g key={`port-${ship.id}`}>
+                <circle
+                  cx={ship.startX}
+                  cy={ship.startY}
+                  r={12}
+                  fill="#0b1329"
+                  stroke={color}
+                  strokeWidth="0.8"
+                  strokeDasharray="2 2"
+                  strokeOpacity="0.5"
+                />
+                <text
+                  x={ship.startX}
+                  y={ship.startY + 3}
+                  textAnchor="middle"
+                  className="text-[8px]"
+                  fill={color}
+                  fillOpacity="0.6"
+                >
+                  ⚓
+                </text>
+                <text
+                  x={ship.startX}
+                  y={ship.startY - 14}
+                  textAnchor="middle"
+                  className="text-[6.5px] font-mono tracking-wider uppercase"
+                  fill={color}
+                  fillOpacity="0.5"
+                >
+                  Port {idx + 1}
+                </text>
               </g>
             );
           })}
@@ -383,6 +447,17 @@ export default function RadarCanvas({
           {ships.map((ship, idx) => {
             const color = SHIP_COLORS[idx % SHIP_COLORS.length];
             const loadPct = ship.capacity > 0 ? ship.load / ship.capacity : 0;
+
+            // Calculate heading rotation towards next waypoint
+            let headingAngle = 0;
+            if (ship.path && ship.path[ship.pathIndex]) {
+              const targetWp = ship.path[ship.pathIndex];
+              headingAngle =
+                (Math.atan2(targetWp.y - ship.y, targetWp.x - ship.x) * 180) /
+                  Math.PI +
+                90;
+            }
+
             return (
               <g key={ship.id}>
                 {/* Range ring */}
@@ -396,29 +471,33 @@ export default function RadarCanvas({
                   strokeOpacity="0.2"
                   strokeDasharray="3 3"
                 />
-                {/* Ship body */}
-                <polygon
-                  points={shipShape(ship.x, ship.y)}
-                  fill={color}
-                  fillOpacity="0.25"
-                  stroke={color}
-                  strokeWidth="1.2"
-                />
-                {/* Blinking beacon */}
-                <circle
-                  cx={ship.x}
-                  cy={ship.y - 5}
-                  r={2}
-                  fill={ship.status === 'idle' ? '#22d3ee' : '#34d399'}
-                >
-                  <animate
-                    attributeName="opacity"
-                    values="1;0.3;1"
-                    dur="1.5s"
-                    repeatCount="indefinite"
+
+                {/* Rotated ship hull */}
+                <g transform={`rotate(${headingAngle} ${ship.x} ${ship.y})`}>
+                  <polygon
+                    points={shipShape(ship.x, ship.y)}
+                    fill={color}
+                    fillOpacity="0.3"
+                    stroke={color}
+                    strokeWidth="1.4"
                   />
-                </circle>
-                {/* Ship name */}
+                  {/* Blinking beacon */}
+                  <circle
+                    cx={ship.x}
+                    cy={ship.y - 5}
+                    r={2}
+                    fill={ship.status === 'idle' ? '#22d3ee' : '#34d399'}
+                  >
+                    <animate
+                      attributeName="opacity"
+                      values="1;0.3;1"
+                      dur="1.5s"
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                </g>
+
+                {/* Ship name & status badge */}
                 <text
                   x={ship.x}
                   y={ship.y - 24}
@@ -428,6 +507,20 @@ export default function RadarCanvas({
                 >
                   {ship.name}
                 </text>
+
+                {/* Status chip */}
+                {ship.status !== 'idle' && (
+                  <text
+                    x={ship.x}
+                    y={ship.y - 15}
+                    textAnchor="middle"
+                    className="text-[6.5px] font-mono uppercase tracking-widest"
+                    fill={ship.status === 'returning' ? '#34d399' : '#38bdf8'}
+                  >
+                    {ship.status}
+                  </text>
+                )}
+
                 {/* Load bar background */}
                 <rect
                   x={ship.x - 16}
@@ -448,16 +541,16 @@ export default function RadarCanvas({
                   height={4}
                   rx={2}
                   fill={color}
-                  fillOpacity="0.6"
+                  fillOpacity="0.75"
                 />
                 {/* Load text */}
                 <text
                   x={ship.x}
                   y={ship.y + 26}
                   textAnchor="middle"
-                  className="text-[7px] font-mono"
+                  className="text-[7px] font-mono font-bold"
                   fill={color}
-                  fillOpacity="0.7"
+                  fillOpacity="0.8"
                 >
                   {ship.load}/{ship.capacity}
                 </text>
