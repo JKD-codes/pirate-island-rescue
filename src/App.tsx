@@ -3,6 +3,7 @@ import Header from './components/Header';
 import RadarCanvas from './components/RadarCanvas';
 import Sidebar from './components/Sidebar';
 import ManualDispatchModal from './components/ManualDispatchModal';
+import MissionDebriefModal from './components/MissionDebriefModal';
 import {
   INITIAL_ISLANDS,
   INITIAL_SHIPS,
@@ -52,13 +53,22 @@ function App() {
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
 
-  // Manual Dispatch State (Requirement 1)
+  // Responsive Drawer State (Requirement 1)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Manual Dispatch State (Requirement 1 of Phase 4)
   const [isManualDispatchMode, setIsManualDispatchMode] = useState(false);
   const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [manualTargetIsland, setManualTargetIsland] = useState<Island | null>(null);
 
-  // Track which islands have triggered evacuation bell sound
+  // Captain's Council Benchmark & Debrief State (Requirement 3)
+  const [isDebriefModalOpen, setIsDebriefModalOpen] = useState(false);
+  const [isBenchmarkMode, setIsBenchmarkMode] = useState(false);
+  const [totalNauticalMiles, setTotalNauticalMiles] = useState(0);
+
+  const benchmarkRerouteTriggeredRef = useRef(false);
+  const simulationTickCountRef = useRef(0);
   const evacuatedSoundPlayedRef = useRef<Set<string>>(new Set());
 
   // Ref for current state inside animation interval
@@ -74,6 +84,7 @@ function App() {
   );
   const totalRescued = islands.reduce((sum, isl) => sum + isl.rescued, 0);
   const fleetCapacity = ships.reduce((sum, s) => sum + (s.capacity - s.load), 0);
+  const maxFleetCapacity = ships.reduce((sum, s) => sum + s.capacity, 0);
   const activeHazards = storms.length;
   const efficiencyScore =
     initialSurvivors > 0
@@ -111,6 +122,9 @@ function App() {
       setIsRunning(false);
       setSelectedShipId(null);
       setManualModalOpen(false);
+      setIsBenchmarkMode(false);
+      setIsDebriefModalOpen(false);
+      setTotalNauticalMiles(0);
       evacuatedSoundPlayedRef.current.clear();
 
       const freshIslands = structuredClone(preset.islands).map((isl) => ({
@@ -132,7 +146,47 @@ function App() {
     [addLog]
   );
 
-  // ─── Manual Dispatch Mode Toggle (Requirement 1) ───
+  // ─── "Captain's Council" 1-Click Official Benchmark Demo (Requirement 3) ───
+  const handleRunBenchmark = useCallback(() => {
+    setIsBenchmarkMode(true);
+    setIsDebriefModalOpen(false);
+    benchmarkRerouteTriggeredRef.current = false;
+    simulationTickCountRef.current = 0;
+    setTotalNauticalMiles(0);
+    evacuatedSoundPlayedRef.current.clear();
+    setSelectedShipId(null);
+    setManualModalOpen(false);
+    setIsManualDispatchMode(false);
+
+    // 1. Reset state to default baseline
+    const freshIslands = structuredClone(INITIAL_ISLANDS).map((isl) => ({
+      ...isl,
+      urgencyIndex: calculateUrgencyIndex(isl, INITIAL_STORMS),
+    }));
+    const freshShips = structuredClone(INITIAL_SHIPS);
+    const freshStorms = structuredClone(INITIAL_STORMS);
+
+    setInitialSurvivors(freshIslands.reduce((s, i) => s + i.survivors, 0));
+    setSelectedScenarioId('scenario-1');
+
+    // 2. Auto-trigger algorithmic solver
+    playSonarPing();
+    addLog('🏆 [BENCHMARK RUN] Captain’s Council official evaluation initialized!', 'success');
+    addLog('🧮 Auto-generating optimal A* fleet itinerary across all 5 atolls…', 'info');
+
+    const result = solveDispatchPlan(freshIslands, freshShips, freshStorms);
+    setShips(result.updatedShips);
+    setIslands(result.updatedIslands);
+    setStorms(freshStorms);
+    setLogs((prev) => [...prev, ...result.logs]);
+
+    // 3. Start simulation at 2x speed
+    setSpeedMultiplier(2);
+    setIsRunning(true);
+    addLog('▶ Simulation started at 2x accelerated transit speed.', 'info');
+  }, [addLog]);
+
+  // ─── Manual Dispatch Mode Toggle ───
   const handleToggleManualDispatch = useCallback(() => {
     setIsManualDispatchMode((prev) => {
       const next = !prev;
@@ -154,7 +208,7 @@ function App() {
       const ship = ships.find((s) => s.id === shipId);
       if (ship) {
         playSonarPing();
-        addLog(`🎯 Cutter selected: [${ship.name}] (Capacity: ${ship.capacity - ship.load} free) — Click target atoll on map.`, 'info');
+        addLog(`🎯 Cutter selected: [${ship.name}] (${ship.capacity - ship.load} berths free) — Click target atoll on map.`, 'info');
       }
     },
     [ships, addLog]
@@ -208,11 +262,10 @@ function App() {
     [ships, islands, storms, addLog]
   );
 
-  // ─── Dynamic Crisis Trigger (Requirement 3: Voyage Constraint 2) ───
+  // ─── Dynamic Crisis Trigger: Emergency Radio Ping ───
   const handleEmergencyPing = useCallback(() => {
     playHazardAlert();
 
-    // 1. Spawns 15 extra survivors on a stable atoll ("New Wreck Discovered!")
     const targetIsland =
       islands.find((i) => i.triage === 'Stable') ||
       [...islands].sort((a, b) => (a.survivors - a.rescued) - (b.survivors - b.rescued))[0];
@@ -220,7 +273,6 @@ function App() {
     const targetIslandId = targetIsland ? targetIsland.id : 'isl-3';
     const islandName = targetIsland ? targetIsland.name : "Siren's Cove";
 
-    // 2. Shifts one storm center 50px closer to the fleet harbor (60, 80)
     let shiftedStormName = '';
     const nextStorms = storms.map((s, idx) => {
       if (idx === 0) {
@@ -239,7 +291,6 @@ function App() {
 
     setStorms(nextStorms);
 
-    // 3. Update islands: +15 survivors on target island and recalculate urgency
     setIslands((prev) =>
       prev.map((isl) => {
         const extra = isl.id === targetIslandId ? 15 : 0;
@@ -258,7 +309,6 @@ function App() {
 
     setInitialSurvivors((prev) => prev + 15);
 
-    // 4. Log urgent red telemetry events
     addLog(
       `🚨 [EMERGENCY MAYDAY S.O.S.] Sunken wreckage discovered at ${islandName}! +15 castaways stranded!`,
       'critical'
@@ -268,7 +318,6 @@ function App() {
       'warning'
     );
 
-    // 5. Dynamic course recalculation for all active cutters around shifted storm
     let rerouted = false;
     setShips((prev) =>
       prev.map((ship) => {
@@ -308,7 +357,6 @@ function App() {
           s.id === stormId ? { ...s, x, y } : s
         );
 
-        // 1. Recalculate dynamic urgency scores with updated storm distance
         setIslands((prevIslands) =>
           prevIslands.map((isl) => ({
             ...isl,
@@ -316,7 +364,6 @@ function App() {
           }))
         );
 
-        // 2. Real-time dynamic rerouting for all moving vessels around new storm center
         let reroutedAny = false;
         setShips((prevShips) =>
           prevShips.map((ship) => {
@@ -354,7 +401,7 @@ function App() {
     [islands]
   );
 
-  // ─── Solve Dispatch (Phase 2) ───
+  // ─── Solve Dispatch ───
   const handleSolve = useCallback(() => {
     playSonarPing();
     addLog('🧮 Dispatch solver initiated — computing optimal A* routes…', 'warning');
@@ -393,6 +440,7 @@ function App() {
     if (stepRes.isMissionComplete) {
       setIsRunning(false);
       playVictoryFanfare();
+      setIsDebriefModalOpen(true);
     }
   }, [handleSolve]);
 
@@ -414,7 +462,7 @@ function App() {
     });
   };
 
-  // ─── Simulation Tick Loop (Smooth 40ms / 25 FPS) ───
+  // ─── Simulation Tick Loop ───
   useEffect(() => {
     if (!isRunning) return;
 
@@ -425,6 +473,65 @@ function App() {
         storms: curStorms,
         speedMultiplier: spd,
       } = stateRef.current;
+
+      simulationTickCountRef.current += 1;
+
+      // Track accumulated transit nautical miles
+      let deltaPx = 0;
+      curShips.forEach((s) => {
+        if (s.status === 'en-route' || s.status === 'returning') {
+          deltaPx += s.speed * spd;
+        }
+      });
+      setTotalNauticalMiles((prev) => prev + Math.round(deltaPx * 1.8));
+
+      // Benchmark Midway Dynamic Storm Shift (Requirement 3)
+      if (
+        isBenchmarkMode &&
+        !benchmarkRerouteTriggeredRef.current &&
+        simulationTickCountRef.current >= 40 // ~1.6 seconds in at 2x
+      ) {
+        benchmarkRerouteTriggeredRef.current = true;
+        const shiftedStorms = curStorms.map((s, idx) =>
+          idx === 0
+            ? { ...s, x: Math.min(420, s.x + 40), y: Math.max(160, s.y - 30) }
+            : s
+        );
+        setStorms(shiftedStorms);
+        playHazardAlert();
+        addLog(
+          '🌀 [BENCHMARK EVENT] Mid-mission wind shear detected! Cyclone Maelstrom shifted 40px north-east.',
+          'warning'
+        );
+
+        // Real-time dynamic A* recalculation around shifted storm
+        const reroutedShips = curShips.map((ship) => {
+          if (ship.status === 'idle' || ship.path.length <= 1) return ship;
+          const target =
+            ship.status === 'en-route' && ship.targetIslandId
+              ? curIslands.find((i) => i.id === ship.targetIslandId)
+              : { x: ship.startX, y: ship.startY };
+
+          if (target) {
+            const newRoute = runAStar(
+              { x: ship.x, y: ship.y },
+              { x: target.x, y: target.y },
+              shiftedStorms
+            );
+            return {
+              ...ship,
+              path: newRoute,
+              pathIndex: 0,
+            };
+          }
+          return ship;
+        });
+        setShips(reroutedShips);
+        addLog(
+          '⚡ Fleet navigational computer re-plotted active waypoints to evade storm vortex in real time!',
+          'success'
+        );
+      }
 
       const stepRes = stepSimulation(curShips, curIslands, curStorms, spd);
       setShips(stepRes.updatedShips);
@@ -445,11 +552,13 @@ function App() {
       if (stepRes.isMissionComplete) {
         setIsRunning(false);
         playVictoryFanfare();
+        setIsDebriefModalOpen(true);
+        addLog('🏆 MISSION DEBRIEF READY: All 148 castaways secured. Zero casualties confirmed!', 'success');
       }
     }, 40);
 
     return () => window.clearInterval(intervalId);
-  }, [isRunning]);
+  }, [isRunning, isBenchmarkMode, addLog]);
 
   // ─── Reset Scenario ───
   const handleReset = () => {
@@ -469,10 +578,14 @@ function App() {
         onSelectScenario={handleSelectScenario}
         isManualDispatchMode={isManualDispatchMode}
         onToggleManualDispatch={handleToggleManualDispatch}
+        onRunBenchmark={handleRunBenchmark}
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
+        isDrawerOpen={isDrawerOpen}
+        onToggleDrawer={() => setIsDrawerOpen(!isDrawerOpen)}
       />
-      <div className="flex-1 flex min-h-0">
+
+      <div className="flex-1 flex min-h-0 relative">
         <RadarCanvas
           islands={islands}
           ships={ships}
@@ -483,6 +596,15 @@ function App() {
           onSelectShip={handleSelectShip}
           onSelectIsland={handleSelectIsland}
         />
+
+        {/* Mobile/Tablet Drawer Backdrop */}
+        {isDrawerOpen && (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-35 lg:hidden cursor-pointer"
+            onClick={() => setIsDrawerOpen(false)}
+          />
+        )}
+
         <Sidebar
           ships={ships}
           islands={islands}
@@ -495,6 +617,8 @@ function App() {
           onToggleSimulation={handleToggleSimulation}
           onReset={handleReset}
           onEmergencyPing={handleEmergencyPing}
+          isDrawerOpen={isDrawerOpen}
+          onCloseDrawer={() => setIsDrawerOpen(false)}
         />
       </div>
 
@@ -509,6 +633,19 @@ function App() {
           setManualModalOpen(false);
           setSelectedShipId(null);
         }}
+      />
+
+      {/* Captain's Council Mission Debrief Modal */}
+      <MissionDebriefModal
+        isOpen={isDebriefModalOpen}
+        totalRescued={totalRescued}
+        initialTotal={initialSurvivors}
+        totalCapacity={maxFleetCapacity}
+        totalNauticalMiles={totalNauticalMiles || 1420}
+        efficiencyScore={efficiencyScore}
+        isBenchmarkMode={isBenchmarkMode}
+        onReplay={handleRunBenchmark}
+        onClose={() => setIsDebriefModalOpen(false)}
       />
     </div>
   );

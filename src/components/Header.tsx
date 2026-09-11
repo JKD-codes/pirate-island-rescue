@@ -10,6 +10,9 @@ import {
   Volume2,
   VolumeX,
   Layers,
+  Trophy,
+  Menu,
+  Navigation,
 } from 'lucide-react';
 import { SCENARIO_PRESETS } from '../data/entities';
 
@@ -23,8 +26,11 @@ interface HeaderProps {
   onSelectScenario: (id: string) => void;
   isManualDispatchMode: boolean;
   onToggleManualDispatch: () => void;
+  onRunBenchmark: () => void;
   isMuted: boolean;
   onToggleMute: () => void;
+  isDrawerOpen: boolean;
+  onToggleDrawer: () => void;
 }
 
 export default function Header({
@@ -37,8 +43,11 @@ export default function Header({
   onSelectScenario,
   isManualDispatchMode,
   onToggleManualDispatch,
+  onRunBenchmark,
   isMuted,
   onToggleMute,
+  isDrawerOpen,
+  onToggleDrawer,
 }: HeaderProps) {
   const chips: {
     label: string;
@@ -49,72 +58,78 @@ export default function Header({
     {
       label: 'Stranded',
       value: totalSurvivors,
-      icon: <Users size={13} />,
+      icon: <Users size={12} />,
       color: 'text-red-400',
     },
     {
       label: 'Rescued',
       value: totalRescued,
-      icon: <ShieldAlert size={13} />,
+      icon: <ShieldAlert size={12} />,
       color: 'text-emerald-400',
     },
     {
-      label: 'Available Cap',
+      label: 'Free Cap',
       value: fleetCapacity,
-      icon: <Ship size={13} />,
+      icon: <Ship size={12} />,
       color: 'text-sky-400',
     },
     {
       label: 'Hazards',
       value: activeHazards,
-      icon: <AlertTriangle size={13} />,
+      icon: <AlertTriangle size={12} />,
       color: 'text-amber-400',
     },
     {
       label: 'Efficiency',
       value: `${efficiencyScore}%`,
-      icon: <Gauge size={13} />,
+      icon: <Gauge size={12} />,
       color: 'text-emerald-300',
     },
   ];
 
   return (
-    <header className="flex flex-wrap items-center justify-between px-4 py-2.5 border-b border-amber-500/20 bg-[#0b1329]/90 backdrop-blur-md gap-2 z-20">
+    <header className="flex flex-wrap items-center justify-between px-3 py-2 border-b border-amber-500/20 bg-[#0b1329]/95 backdrop-blur-md gap-2 z-30 shrink-0">
       {/* ─── Left: Title cluster ─── */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
         <div className="relative">
-          <Anchor className="text-amber-400" size={24} />
+          <Anchor className="text-amber-400" size={22} />
           <Activity
             className="absolute -top-1 -right-1 text-sky-400 animate-pulse"
-            size={10}
+            size={9}
           />
         </div>
         <div>
-          <h1 className="text-xs md:text-sm font-bold tracking-[0.2em] text-amber-100 uppercase leading-tight flex items-center gap-1.5">
+          <h1 className="text-xs md:text-sm font-bold tracking-[0.16em] text-amber-100 uppercase leading-tight flex items-center gap-1.5">
             KrakenWatch
             <span className="text-amber-500/60 font-normal">//</span>
-            <span className="text-sky-300 font-medium text-[11px] md:text-xs tracking-[0.14em]">
+            <span className="text-sky-300 font-medium text-[10.5px] md:text-xs tracking-[0.12em] hidden sm:inline">
               Fleet Disaster Rescue Coordinator
             </span>
           </h1>
-          <p className="text-[9px] text-slate-500 tracking-widest uppercase font-mono">
+          <p className="text-[8.5px] text-slate-500 tracking-widest uppercase font-mono hidden sm:block">
             Maritime AI Dispatch Command • Sector 7G
           </p>
         </div>
       </div>
 
-      {/* ─── Center: Presets & Manual Dispatch Toggle ─── */}
-      <div className="flex items-center gap-2">
+      {/* ─── Center: Official Benchmark Demo & Manual Dispatch Toggle ─── */}
+      <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
+        {/* "Captain's Council" 1-Click Benchmark Demo */}
+        <button
+          onClick={onRunBenchmark}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10.5px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 hover:brightness-110 active:scale-95 transition-all shadow-[0_0_18px_rgba(245,158,11,0.35)] cursor-pointer"
+        >
+          <Trophy size={13} className="text-slate-950" />
+          <span>Run Official Benchmark Demo</span>
+        </button>
+
         {/* Scenario Selector */}
-        <div className="flex items-center gap-1.5 bg-slate-900/90 border border-amber-500/25 rounded-md px-2.5 py-1 shadow-sm">
-          <Layers size={13} className="text-amber-400" />
-          <span className="text-[10px] font-mono font-bold text-amber-300 uppercase tracking-wider hidden sm:inline">
-            Scenario:
-          </span>
+        <div className="hidden md:flex items-center gap-1.5 bg-slate-900/90 border border-amber-500/25 rounded-md px-2 py-1 shadow-sm">
+          <Layers size={12} className="text-amber-400" />
           <select
             value={selectedScenarioId}
             onChange={(e) => onSelectScenario(e.target.value)}
-            className="bg-transparent text-[11px] font-mono text-slate-200 outline-none cursor-pointer pr-1"
+            className="bg-transparent text-[10.5px] font-mono text-slate-200 outline-none cursor-pointer pr-1"
           >
             {SCENARIO_PRESETS.map((preset) => (
               <option
@@ -122,7 +137,7 @@ export default function Header({
                 value={preset.id}
                 className="bg-[#0b1329] text-slate-200"
               >
-                {preset.name} [{preset.tag}]
+                {preset.name}
               </option>
             ))}
           </select>
@@ -131,39 +146,43 @@ export default function Header({
         {/* Manual Dispatch Mode Button */}
         <button
           onClick={onToggleManualDispatch}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10.5px] font-mono font-bold uppercase tracking-wider border transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider border transition-all cursor-pointer ${
             isManualDispatchMode
-              ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
-              : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+              ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+              : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200'
           }`}
         >
-          <span
-            className={`w-2 h-2 rounded-full ${
-              isManualDispatchMode ? 'bg-amber-400 animate-ping' : 'bg-slate-600'
-            }`}
-          />
-          <span>Manual Dispatch: {isManualDispatchMode ? 'ON' : 'OFF'}</span>
+          <Navigation size={11} className={isManualDispatchMode ? 'text-amber-400' : 'text-slate-500'} />
+          <span>Manual: {isManualDispatchMode ? 'ON' : 'OFF'}</span>
         </button>
       </div>
 
-      {/* ─── Right: Telemetry chips + Mute Button ─── */}
-      <div className="flex items-center gap-1.5 md:gap-2">
+      {/* ─── Right: Telemetry chips + Mute + Mobile Drawer Toggle ─── */}
+      <div className="flex items-center gap-1 md:gap-1.5">
         {chips.map((chip) => (
           <div
             key={chip.label}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-slate-700/60 bg-slate-900/70"
+            className="hidden xl:flex items-center gap-1 px-2 py-0.5 rounded border border-slate-700/60 bg-slate-900/70"
           >
             <span className={chip.color}>{chip.icon}</span>
             <div className="text-right">
-              <p className="text-[8.5px] text-slate-400 uppercase tracking-wider leading-none">
+              <p className="text-[7.5px] text-slate-400 uppercase tracking-wider leading-none">
                 {chip.label}
               </p>
-              <p className={`text-xs font-mono font-bold ${chip.color} leading-tight`}>
+              <p className={`text-[11px] font-mono font-bold ${chip.color} leading-tight`}>
                 {chip.value}
               </p>
             </div>
           </div>
         ))}
+
+        {/* Efficiency chip (visible on all screens) */}
+        <div className="flex items-center gap-1 px-2 py-1 rounded border border-slate-700/60 bg-slate-900/80">
+          <Gauge size={12} className="text-emerald-400" />
+          <span className="text-[11px] font-mono font-bold text-emerald-300">
+            {efficiencyScore}%
+          </span>
+        </div>
 
         {/* Audio Mute Toggle */}
         <button
@@ -175,7 +194,21 @@ export default function Header({
               : 'bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25'
           }`}
         >
-          {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+          {isMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
+        </button>
+
+        {/* Slide-over Drawer Menu Button (below 1024px) */}
+        <button
+          onClick={onToggleDrawer}
+          title={isDrawerOpen ? 'Close Command Deck Drawer' : 'Open Command Deck Drawer'}
+          className={`lg:hidden flex items-center gap-1 px-2.5 py-1 rounded-md text-[10.5px] font-mono font-bold uppercase tracking-wider border cursor-pointer ${
+            isDrawerOpen
+              ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+              : 'bg-slate-800 border-slate-700 text-amber-300 hover:bg-slate-700'
+          }`}
+        >
+          <Menu size={13} />
+          <span>{isDrawerOpen ? 'Close Deck' : 'Deck'}</span>
         </button>
       </div>
     </header>

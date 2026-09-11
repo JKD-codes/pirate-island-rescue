@@ -92,7 +92,8 @@ export default function RadarCanvas({
         <svg
           ref={svgRef}
           viewBox="0 0 800 600"
-          className="w-full h-full"
+          preserveAspectRatio="xMidYMid meet"
+          className="w-full h-full select-none"
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}

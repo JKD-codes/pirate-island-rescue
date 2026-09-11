@@ -12,6 +12,7 @@ import {
   FastForward,
   StepForward,
   Radio,
+  X,
 } from 'lucide-react';
 import type { Island, Ship as ShipT, LogEntry } from '../types';
 import { TRIAGE_COLORS, SHIP_COLORS } from '../data/entities';
@@ -28,6 +29,8 @@ interface SidebarProps {
   onToggleSimulation: () => void;
   onReset: () => void;
   onEmergencyPing: () => void;
+  isDrawerOpen?: boolean;
+  onCloseDrawer?: () => void;
 }
 
 const LOG_TYPE_COLORS = {
@@ -56,6 +59,8 @@ export default function Sidebar({
   onToggleSimulation,
   onReset,
   onEmergencyPing,
+  isDrawerOpen = false,
+  onCloseDrawer,
 }: SidebarProps) {
   const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -64,9 +69,27 @@ export default function Sidebar({
   }, [logs.length]);
 
   return (
-    <aside className="w-[380px] shrink-0 border-l border-amber-500/15 bg-[#0b1329] flex flex-col overflow-hidden select-none">
+    <aside
+      className={`w-[360px] sm:w-[380px] max-w-[90vw] shrink-0 border-l border-amber-500/15 bg-[#0b1329] flex flex-col overflow-hidden select-none z-40 transition-transform duration-300 fixed inset-y-0 right-0 shadow-2xl lg:relative lg:translate-x-0 ${
+        isDrawerOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
+      }`}
+    >
       {/* ─── Action Buttons ─── */}
       <div className="px-4 pt-3 pb-3 space-y-2 border-b border-slate-700/40">
+        {/* Mobile Drawer Close Header */}
+        <div className="flex items-center justify-between lg:hidden pb-1 border-b border-slate-800">
+          <span className="text-xs font-mono font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+            <Compass size={13} className="text-amber-400" />
+            Command Deck Drawer
+          </span>
+          <button
+            onClick={onCloseDrawer}
+            className="text-slate-400 hover:text-slate-200 p-1 rounded transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
         <SectionLabel icon={<Compass size={12} />} text="Command Console" />
 
         {/* Primary Controls */}
