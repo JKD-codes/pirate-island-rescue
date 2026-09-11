@@ -55,36 +55,6 @@ export default function Header({
   isDrawerOpen,
   onToggleDrawer,
 }: HeaderProps) {
-  const [isScenarioOpen, setIsScenarioOpen] = useState(false);
-  const scenarioDropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        scenarioDropdownRef.current &&
-        !scenarioDropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsScenarioOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsScenarioOpen(false);
-      }
-    }
-    if (isScenarioOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isScenarioOpen]);
-
-  const currentPreset =
-    SCENARIO_PRESETS.find((p) => p.id === selectedScenarioId) || SCENARIO_PRESETS[0];
-
   const chips: {
     label: string;
     value: string | number;
