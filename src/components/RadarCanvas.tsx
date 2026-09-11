@@ -757,7 +757,7 @@ export default function RadarCanvas({
                     cx={ship.x}
                     cy={ship.y - 5}
                     r={2}
-                    fill={ship.status === 'idle' ? '#22d3ee' : '#34d399'}
+                    fill={ship.status === 'idle' ? '#22d3ee' : ship.status === 'holding' ? '#f59e0b' : '#34d399'}
                   >
                     <animate
                       attributeName="opacity"
@@ -767,6 +767,26 @@ export default function RadarCanvas({
                     />
                   </circle>
                 </g>
+
+                {/* Heaved-To Holding Shelter Ring */}
+                {ship.status === 'holding' && (
+                  <circle
+                    cx={ship.x}
+                    cy={ship.y}
+                    r={24}
+                    fill="none"
+                    stroke="#f59e0b"
+                    strokeWidth="1.5"
+                    strokeDasharray="3 3"
+                  >
+                    <animate
+                      attributeName="stroke-opacity"
+                      values="0.3;1;0.3"
+                      dur="1s"
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                )}
 
                 {/* Ship name */}
                 <text
@@ -785,10 +805,16 @@ export default function RadarCanvas({
                     x={ship.x}
                     y={ship.y - 15}
                     textAnchor="middle"
-                    className="text-[6.5px] font-mono uppercase tracking-widest"
-                    fill={ship.status === 'returning' ? '#34d399' : '#38bdf8'}
+                    className="text-[6.5px] font-mono uppercase tracking-widest font-bold"
+                    fill={
+                      ship.status === 'returning'
+                        ? '#34d399'
+                        : ship.status === 'holding'
+                        ? '#fbbf24'
+                        : '#38bdf8'
+                    }
                   >
-                    {ship.status}
+                    {ship.status === 'holding' ? 'HEAVED TO' : ship.status}
                   </text>
                 )}
 

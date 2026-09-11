@@ -2,7 +2,7 @@
 
 export type TriageLevel = 'Critical' | 'Urgent' | 'Stable';
 
-export type ShipStatus = 'idle' | 'en-route' | 'loading' | 'returning';
+export type ShipStatus = 'idle' | 'en-route' | 'loading' | 'returning' | 'holding';
 
 export type IslandStatus = 'pending' | 'in-progress' | 'evacuated';
 
@@ -41,6 +41,8 @@ export interface Storm {
   x: number;
   y: number;
   radius: number;
+  vx?: number;
+  vy?: number;
 }
 
 export interface LogEntry {

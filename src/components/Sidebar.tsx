@@ -45,6 +45,7 @@ const STATUS_COLORS: Record<string, { text: string; bg: string; border: string }
   'en-route': { text: 'text-sky-400', bg: 'bg-sky-950/60', border: 'border-sky-500/30' },
   loading: { text: 'text-amber-400', bg: 'bg-amber-950/60', border: 'border-amber-500/30' },
   returning: { text: 'text-emerald-400', bg: 'bg-emerald-950/60', border: 'border-emerald-500/30' },
+  holding: { text: 'text-amber-300 font-bold', bg: 'bg-amber-950/80', border: 'border-amber-400' },
 };
 
 export default function Sidebar({
@@ -211,6 +212,8 @@ export default function Sidebar({
                       ? '🏠 Returning to Safe Port'
                       : ship.status === 'loading'
                       ? '⚓ Embarking Castaways'
+                      : ship.status === 'holding'
+                      ? '⚠️ Heaved-To • Sheltering from Hazard'
                       : '⚓ Standing by in harbor'}
                   </span>
                   <span className="text-slate-500 flex items-center gap-1">

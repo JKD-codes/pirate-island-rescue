@@ -62,6 +62,9 @@ function App() {
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [manualTargetIsland, setManualTargetIsland] = useState<Island | null>(null);
 
+  // Storm Roaming Mode (Auto-Drift vs Manual Drag)
+  const [autoRoamStorms, setAutoRoamStorms] = useState<boolean>(true);
+
   // Captain's Council Benchmark & Debrief State (Requirement 3)
   const [isDebriefModalOpen, setIsDebriefModalOpen] = useState(false);
   const [isBenchmarkMode, setIsBenchmarkMode] = useState(false);
@@ -72,10 +75,10 @@ function App() {
   const evacuatedSoundPlayedRef = useRef<Set<string>>(new Set());
 
   // Ref for current state inside animation interval
-  const stateRef = useRef({ ships, islands, storms, speedMultiplier });
+  const stateRef = useRef({ ships, islands, storms, speedMultiplier, autoRoamStorms });
   useEffect(() => {
-    stateRef.current = { ships, islands, storms, speedMultiplier };
-  }, [ships, islands, storms, speedMultiplier]);
+    stateRef.current = { ships, islands, storms, speedMultiplier, autoRoamStorms };
+  }, [ships, islands, storms, speedMultiplier, autoRoamStorms]);
 
   // ─── Derived Telemetry ───
   const totalSurvivors = islands.reduce(
@@ -91,15 +94,6 @@ function App() {
       ? Math.min(100, Math.round((totalRescued / initialSurvivors) * 100))
       : 100;
 
-  // ─── Sound Mute Toggle ───
-  const handleToggleMute = useCallback(() => {
-    setIsMuted((prev) => {
-      const next = !prev;
-      setSoundMuted(next);
-      return next;
-    });
-  }, []);
-
   // ─── Log Helper ───
   const addLog = useCallback(
     (message: string, type: LogEntry['type'] = 'info') => {
@@ -111,6 +105,30 @@ function App() {
     },
     []
   );
+
+  // ─── Sound Mute Toggle ───
+  const handleToggleMute = useCallback(() => {
+    setIsMuted((prev) => {
+      const next = !prev;
+      setSoundMuted(next);
+      return next;
+    });
+  }, []);
+
+  // ─── Storm Auto-Roam Toggle ───
+  const handleToggleAutoRoam = useCallback(() => {
+    setAutoRoamStorms((prev) => {
+      const next = !prev;
+      playSonarPing();
+      addLog(
+        next
+          ? '🌀 Cyclone Atmospheric Auto-Drift ENABLED — Storms wandering dynamically across archipelago.'
+          : '⚓ Cyclone Auto-Drift PAUSED — Manual hazard positioning & drag-and-drop mode active.',
+        'info'
+      );
+      return next;
+    });
+  }, [addLog]);
 
   // ─── Scenario Switcher ───
   const handleSelectScenario = useCallback(
@@ -413,8 +431,13 @@ function App() {
 
   // ─── Single Simulation Step (Manual Tick) ───
   const handleStep = useCallback(() => {
-    const { ships: curShips, islands: curIslands, storms: curStorms, speedMultiplier: spd } =
-      stateRef.current;
+    const {
+      ships: curShips,
+      islands: curIslands,
+      storms: curStorms,
+      speedMultiplier: spd,
+      autoRoamStorms: roam,
+    } = stateRef.current;
 
     const hasActiveRoutes = curShips.some((s) => s.path.length > 0 && s.status !== 'idle');
     if (!hasActiveRoutes) {
@@ -422,9 +445,12 @@ function App() {
       return;
     }
 
-    const stepRes = stepSimulation(curShips, curIslands, curStorms, spd);
+    const stepRes = stepSimulation(curShips, curIslands, curStorms, spd, roam);
     setShips(stepRes.updatedShips);
     setIslands(stepRes.updatedIslands);
+    if (roam && stepRes.updatedStorms) {
+      setStorms(stepRes.updatedStorms);
+    }
 
     // Audio feedback for newly evacuated islands
     stepRes.updatedIslands.forEach((isl) => {
@@ -472,6 +498,7 @@ function App() {
         islands: curIslands,
         storms: curStorms,
         speedMultiplier: spd,
+        autoRoamStorms: roam,
       } = stateRef.current;
 
       simulationTickCountRef.current += 1;
@@ -533,9 +560,12 @@ function App() {
         );
       }
 
-      const stepRes = stepSimulation(curShips, curIslands, curStorms, spd);
+      const stepRes = stepSimulation(curShips, curIslands, curStorms, spd, roam);
       setShips(stepRes.updatedShips);
       setIslands(stepRes.updatedIslands);
+      if (roam && stepRes.updatedStorms) {
+        setStorms(stepRes.updatedStorms);
+      }
 
       // Trigger audio bell chime on atoll clearance
       stepRes.updatedIslands.forEach((isl) => {
@@ -576,6 +606,8 @@ function App() {
         efficiencyScore={efficiencyScore}
         selectedScenarioId={selectedScenarioId}
         onSelectScenario={handleSelectScenario}
+        autoRoamStorms={autoRoamStorms}
+        onToggleAutoRoam={handleToggleAutoRoam}
         isManualDispatchMode={isManualDispatchMode}
         onToggleManualDispatch={handleToggleManualDispatch}
         onRunBenchmark={handleRunBenchmark}

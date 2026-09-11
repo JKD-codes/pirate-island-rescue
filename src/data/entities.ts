@@ -116,6 +116,8 @@ export const INITIAL_STORMS: Storm[] = [
     x: 300,
     y: 220,
     radius: 85,
+    vx: 0.45,
+    vy: -0.25,
   },
   {
     id: 'storm-2',
@@ -123,6 +125,8 @@ export const INITIAL_STORMS: Storm[] = [
     x: 560,
     y: 320,
     radius: 75,
+    vx: -0.35,
+    vy: 0.35,
   },
 ];
 

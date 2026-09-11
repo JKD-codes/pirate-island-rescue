@@ -13,6 +13,7 @@ import {
   Trophy,
   Menu,
   Navigation,
+  Wind,
 } from 'lucide-react';
 import { SCENARIO_PRESETS } from '../data/entities';
 
@@ -24,6 +25,8 @@ interface HeaderProps {
   efficiencyScore: number;
   selectedScenarioId: string;
   onSelectScenario: (id: string) => void;
+  autoRoamStorms: boolean;
+  onToggleAutoRoam: () => void;
   isManualDispatchMode: boolean;
   onToggleManualDispatch: () => void;
   onRunBenchmark: () => void;
@@ -41,6 +44,8 @@ export default function Header({
   efficiencyScore,
   selectedScenarioId,
   onSelectScenario,
+  autoRoamStorms,
+  onToggleAutoRoam,
   isManualDispatchMode,
   onToggleManualDispatch,
   onRunBenchmark,
@@ -142,6 +147,28 @@ export default function Header({
             ))}
           </select>
         </div>
+
+        {/* Storm Drift Mode (Auto-Drift vs Manual Drag) Toggle */}
+        <button
+          onClick={onToggleAutoRoam}
+          title={
+            autoRoamStorms
+              ? 'Cyclone Atmospheric Auto-Drift Active — Click to switch to Manual Drag'
+              : 'Cyclone Manual Drag Mode Active — Click to enable Atmospheric Auto-Drift'
+          }
+          className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider border transition-all cursor-pointer ${
+            autoRoamStorms
+              ? 'bg-sky-500/20 border-sky-400/80 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.25)]'
+              : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Wind
+            size={11}
+            className={autoRoamStorms ? 'text-sky-400 animate-spin' : 'text-slate-500'}
+            style={autoRoamStorms ? { animationDuration: '6s' } : undefined}
+          />
+          <span>Storms: {autoRoamStorms ? 'AUTO' : 'MANUAL'}</span>
+        </button>
 
         {/* Manual Dispatch Mode Button */}
         <button
