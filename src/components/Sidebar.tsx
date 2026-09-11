@@ -137,71 +137,80 @@ export default function Sidebar({
         <div className="flex gap-2">
           <button
             onClick={onSolve}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded text-[11px] font-heading font-black uppercase tracking-wider bg-gradient-to-b from-[#f59e0b] via-[#d97706] to-[#92400e] text-[#1c0d02] border border-[#fde68a] hover:brightness-110 active:scale-95 transition-all duration-150 cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-[11px] font-heading font-black uppercase tracking-wider bg-gradient-to-b from-[#f59e0b] via-[#d97706] to-[#92400e] text-[#1c0d02] border-2 border-[#fef08a] hover:brightness-110 active:scale-95 transition-all duration-150 cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.4)]"
           >
-            <Compass size={13} className="text-[#1c0d02]" />
+            <Compass size={14} className="text-[#1c0d02]" />
             <span>Chart Passage</span>
           </button>
           <button
             onClick={onToggleSimulation}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded text-[11px] font-heading font-black uppercase tracking-wider border active:scale-95 transition-all duration-150 cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-[11px] font-heading font-black uppercase tracking-wider border-2 active:scale-95 transition-all duration-150 cursor-pointer ${
               isRunning
-                ? 'bg-gradient-to-b from-[#991b1b] to-[#7f1d1d] text-rose-100 border-rose-400 shadow-[0_0_15px_rgba(239,68,68,0.3)] hover:brightness-110'
-                : 'bg-gradient-to-b from-[#166534] to-[#14532d] text-emerald-100 border-emerald-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:brightness-110'
+                ? 'bg-gradient-to-b from-[#dc2626] via-[#b91c1c] to-[#7f1d1d] text-rose-100 border-rose-300 shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:brightness-110'
+                : 'bg-gradient-to-b from-[#059669] via-[#047857] to-[#064e3b] text-emerald-100 border-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:brightness-110'
             }`}
           >
-            {isRunning ? <Pause size={13} /> : <Play size={13} />}
+            {isRunning ? <Pause size={14} /> : <Play size={14} />}
             <span>{isRunning ? 'Cast Anchor' : 'Hoist Canvas'}</span>
           </button>
         </div>
 
-        {/* Secondary Controls: Knots & Single Tick */}
-        <div className="flex items-center gap-1.5">
-          <div className="flex items-center gap-1 bg-[#1a1109] rounded p-1 border border-[#6b4423] flex-1">
-            <FastForward size={11} className="text-[#c89b3c] ml-1" />
-            <span className="text-[9px] font-heading text-[#c89b3c]/80 mr-1">Knots:</span>
-            {[1, 2, 4].map((spd) => (
+        {/* Engine Order Telegraph & Turn Controls */}
+        <div className="space-y-1.5">
+          {/* Engine Order Telegraph: Knots Speed Selector */}
+          <div className="flex items-center gap-1 bg-[#150d06] rounded-lg p-1 border border-[#8b5a2b] shadow-inner">
+            <div className="flex items-center gap-1 px-1.5 text-[#d4af37] font-heading text-[8px] uppercase font-bold tracking-wider">
+              <FastForward size={10} className="text-[#f59e0b]" />
+              <span>Telegraph:</span>
+            </div>
+            {[
+              { mult: 1, label: 'Slow (1x)' },
+              { mult: 2, label: 'Half (2x)' },
+              { mult: 4, label: 'Full (4x)' },
+            ].map((item) => (
               <button
-                key={spd}
-                onClick={() => onSetSpeedMultiplier(spd)}
-                className={`flex-1 py-0.5 rounded text-[9.5px] font-heading font-bold transition-all ${
-                  speedMultiplier === spd
-                    ? 'bg-[#d4af37] text-[#1c0d02] shadow-[0_0_8px_rgba(212,175,55,0.4)]'
-                    : 'text-amber-200/70 hover:text-amber-100'
+                key={item.mult}
+                onClick={() => onSetSpeedMultiplier(item.mult)}
+                className={`flex-1 py-1 rounded text-[8.5px] font-heading font-extrabold uppercase transition-all cursor-pointer ${
+                  speedMultiplier === item.mult
+                    ? 'bg-gradient-to-b from-[#f59e0b] to-[#b45309] text-[#1c0d02] border border-[#fde68a] shadow-[0_0_10px_rgba(245,158,11,0.5)]'
+                    : 'text-amber-200/60 hover:text-amber-100 hover:bg-[#261509]'
                 }`}
               >
-                {spd}x
+                {item.label}
               </button>
             ))}
           </div>
 
-          <button
-            onClick={onStep}
-            disabled={isRunning}
-            title="Advance 1 Nautical Turn"
-            className="flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-heading bg-[#22150b] border border-[#785108] text-amber-200 hover:bg-[#331f10] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-          >
-            <StepForward size={11} />
-            <span>Turn</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={onStep}
+              disabled={isRunning}
+              title="Advance 1 Nautical Turn"
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-heading font-bold bg-gradient-to-b from-[#251509] to-[#170c05] border border-[#d4af37]/60 text-amber-200 hover:text-white hover:border-[#fde68a] disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm"
+            >
+              <StepForward size={11} className="text-amber-400" />
+              <span>Advance Turn</span>
+            </button>
 
-          <button
-            onClick={onReset}
-            title="Reset Sea Chart"
-            className="flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-heading bg-[#22150b] border border-[#785108] text-amber-300 hover:text-amber-100 hover:bg-[#331f10] transition-all cursor-pointer"
-          >
-            <RotateCcw size={11} />
-            <span>Reset</span>
-          </button>
+            <button
+              onClick={onReset}
+              title="Reset Sea Chart"
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-heading font-bold bg-gradient-to-b from-[#251509] to-[#170c05] border border-[#d4af37]/60 text-amber-300 hover:text-white hover:border-[#fde68a] transition-all cursor-pointer shadow-sm"
+            >
+              <RotateCcw size={11} className="text-amber-400" />
+              <span>Reset Chart</span>
+            </button>
+          </div>
         </div>
 
         {/* Emergency Distress Flare Button */}
         <button
           onClick={onEmergencyPing}
-          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded text-[10.5px] font-heading font-black uppercase tracking-wider bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#7f1d1d] text-amber-100 border border-red-500/70 hover:brightness-110 active:scale-95 transition-all duration-150 cursor-pointer shadow-[0_0_15px_rgba(239,68,68,0.25)]"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[10.5px] font-heading font-black uppercase tracking-wider bg-gradient-to-r from-[#991b1b] via-[#b91c1c] to-[#991b1b] text-amber-100 border-2 border-red-400 hover:brightness-110 active:scale-95 transition-all duration-150 cursor-pointer shadow-[0_0_20px_rgba(239,68,68,0.35)]"
         >
-          <Flame size={13} className="text-amber-300 animate-pulse" />
-          <span>Fire Emergency Distress Flare (S.O.S.)</span>
+          <Flame size={14} className="text-amber-300 animate-pulse" />
+          <span>Fire Distress Flare (S.O.S.)</span>
         </button>
       </div>
 
@@ -309,20 +318,20 @@ export default function Sidebar({
                     </div>
 
                     {/* Hold capacity bar */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-[#0e0703] rounded-full overflow-hidden border border-[#5c4028]">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[8px] font-mono text-amber-200/80">
+                        <span>Hold: {ship.load} / {ship.capacity} souls ({loadPct}%)</span>
+                        <span className="text-[#38bdf8] font-bold">{ship.capacity - ship.load} berths free</span>
+                      </div>
+                      <div className="h-2.5 bg-[#0e0703] rounded-full overflow-hidden border border-[#5c4028] p-0.5 shadow-inner">
                         <div
-                          className="h-full rounded-full transition-all duration-300"
+                          className="h-full rounded-full transition-all duration-300 bg-gradient-to-r from-amber-500 via-emerald-400 to-sky-400"
                           style={{
-                            width: `${loadPct}%`,
-                            backgroundColor: color,
-                            opacity: 0.9,
+                            width: `${loadPct > 0 ? Math.max(5, loadPct) : 0}%`,
+                            boxShadow: loadPct > 0 ? '0 0 8px rgba(212,175,55,0.5)' : undefined,
                           }}
                         />
                       </div>
-                      <span className="text-[9.5px] font-heading font-bold text-amber-300 w-16 text-right shrink-0">
-                        {ship.load}/{ship.capacity} ({loadPct}%)
-                      </span>
                     </div>
                   </div>
                 );
@@ -384,40 +393,27 @@ export default function Sidebar({
                         <span className={`text-[11px] font-heading font-extrabold truncate ${isCleared ? 'text-emerald-300/80 line-through' : 'text-[#f4ecd8]'}`}>
                           {island.name}
                         </span>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {island.urgencyIndex !== 0 && isFinite(island.urgencyIndex) && !isCleared && (
-                            <span className="text-[8px] font-heading font-bold text-amber-300 bg-[#2b1909] border border-[#d4af37]/50 px-1 py-0.2 rounded">
-                              P:{island.urgencyIndex.toFixed(0)}
-                            </span>
-                          )}
-                          <span
-                            className="text-[8px] font-heading font-extrabold uppercase px-1.5 py-0.5 rounded shadow-sm"
-                            style={{
-                              color: isCleared ? '#34d399' : tc.text,
-                              backgroundColor: isCleared ? '#064e3b55' : `${tc.bg}33`,
-                              border: `1px solid ${isCleared ? '#10b981' : tc.border}`,
-                            }}
-                          >
-                            {isCleared ? '✓ LIBERATED' : island.triage}
-                          </span>
-                        </div>
+                        <span
+                          className="text-[7.5px] uppercase font-heading font-black px-1.5 py-0.2 rounded border shadow-inner"
+                          style={{ color: tc.text, borderColor: tc.border, backgroundColor: tc.bg + '33' }}
+                        >
+                          {isCleared ? '100% SECURED' : island.triage}
+                        </span>
                       </div>
 
-                      {/* Rescue progress bar */}
+                      {/* Castaway headcount & progress bar */}
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-[#0e0703] rounded-full overflow-hidden border border-[#5c4028]/60">
+                        <div className="flex-1 h-1.5 bg-[#0e0703] rounded-full overflow-hidden border border-[#5c4028]/80">
                           <div
                             className="h-full rounded-full transition-all duration-300"
                             style={{
                               width: `${pct}%`,
-                              backgroundColor: isCleared ? '#34d399' : tc.bg,
-                              opacity: 0.85,
+                              backgroundColor: isCleared ? '#10b981' : tc.border,
                             }}
                           />
                         </div>
-                        <span className={`text-[9px] font-heading font-bold w-16 text-right shrink-0 ${isCleared ? 'text-emerald-300' : 'text-amber-200/90'}`}>
-                          {isCleared ? '100%' : `${remaining} left`}
+                        <span className="text-[9px] font-mono font-bold text-amber-300 shrink-0">
+                          {isCleared ? '0 Left' : `${remaining} Stranded`}
                         </span>
                       </div>
                     </div>
@@ -448,13 +444,13 @@ export default function Sidebar({
               </button>
             </div>
 
-            <div className="flex-1 rounded-lg bg-[#0e0703] border border-[#5c4028] overflow-y-auto font-parchment text-[11px] p-3 shadow-inner space-y-1 max-h-[360px]">
+            <div className="flex-1 rounded-lg bg-[#0c0602] border border-[#6b4423]/80 overflow-y-auto font-parchment text-[11.5px] p-3 shadow-inner space-y-2 max-h-[380px]">
               {logs.map((log, i) => (
-                <div key={i} className="flex items-start gap-2 leading-relaxed">
-                  <span className="text-[#c89b3c]/70 shrink-0 font-heading text-[9.5px] mt-0.5">
-                    [{log.timestamp}]
+                <div key={i} className="flex items-start gap-2 leading-relaxed border-b border-[#251508]/70 pb-1.5 last:border-0">
+                  <span className="text-[#d4af37]/80 shrink-0 font-mono text-[9px] mt-0.5 bg-[#170c04] px-1.5 py-0.2 rounded border border-[#5c3a1d]/60">
+                    {log.timestamp}
                   </span>
-                  <span className={`${LOG_TYPE_COLORS[log.type]} break-words flex-1 min-w-0`}>
+                  <span className={`${LOG_TYPE_COLORS[log.type]} break-words flex-1 min-w-0 font-parchment tracking-wide`}>
                     {log.message}
                   </span>
                 </div>

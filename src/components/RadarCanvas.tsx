@@ -244,6 +244,64 @@ export default function RadarCanvas({
             <text x="-44" y="3" textAnchor="middle" fill="#d4af37" className="text-[8.5px] font-pirate font-bold">W</text>
           </g>
 
+          {/* ─── Animated Wind of Fate Speed & Vector Gauge ─── */}
+          <g transform="translate(735, 42)" className="pointer-events-none select-none">
+            <circle r="18" fill="#120904" fillOpacity="0.85" stroke="#d4af37" strokeWidth="0.9" />
+            <text x="0" y="-8" textAnchor="middle" fill="#fde68a" className="text-[6px] font-heading font-bold uppercase">
+              WIND
+            </text>
+            <g transform="rotate(45)">
+              <line x1="0" y1="8" x2="0" y2="-8" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" />
+              <polygon points="0,-11 -3,-6 3,-6" fill="#38bdf8" />
+            </g>
+            <text x="0" y="13" textAnchor="middle" fill="#38bdf8" className="text-[6px] font-mono font-bold">
+              24 KT
+            </text>
+          </g>
+
+          {/* ─── Ornate Historical Maritime Cartouche (Bottom-Left) ─── */}
+          <g transform="translate(18, 516)" className="pointer-events-none select-none">
+            <rect
+              x="0"
+              y="0"
+              width="156"
+              height="68"
+              rx="6"
+              fill="#140c06"
+              fillOpacity="0.9"
+              stroke="#c89b3c"
+              strokeWidth="1.2"
+              filter="drop-shadow(0 4px 12px rgba(0,0,0,0.85))"
+            />
+            <rect
+              x="3"
+              y="3"
+              width="150"
+              height="62"
+              rx="4"
+              fill="none"
+              stroke="#8b5a2b"
+              strokeWidth="0.8"
+              strokeDasharray="4 2"
+            />
+            <text x="78" y="15" textAnchor="middle" fill="#f3e5ab" className="text-[8.5px] font-pirate tracking-wider">
+              ARCHIPELAGO OF PERIL
+            </text>
+            <text x="78" y="25" textAnchor="middle" fill="#c89b3c" className="text-[6px] font-heading tracking-widest uppercase">
+              Crown Hydrographer • Sector 7G
+            </text>
+            <line x1="16" y1="30" x2="140" y2="30" stroke="#8b5a2b" strokeWidth="0.6" />
+            <text x="12" y="41" fill="#fbbf24" className="text-[6.5px] font-mono">
+              COORD: 14°22'N, 78°15'W
+            </text>
+            <text x="12" y="51" fill="#93c5fd" className="text-[6.5px] font-mono">
+              BARO: 994 hPa (TEMPEST)
+            </text>
+            <text x="12" y="61" fill="#34d399" className="text-[6.5px] font-mono font-bold">
+              STATUS: RESCUE IN PROGRESS
+            </text>
+          </g>
+
           {/* ─── Golden Navigational Chart Sunbeam / Shimmer ─── */}
           <rect x="0" y="0" width="800" height="35" fill="url(#scanLine)">
             <animateTransform
@@ -320,6 +378,84 @@ export default function RadarCanvas({
                   fillOpacity="0.6"
                   className="pointer-events-none"
                 />
+
+                {/* 3.5. Rotating Atmospheric Gale Spirals */}
+                {!isMonster && (
+                  <g transform={`translate(${storm.x}, ${storm.y})`} className="pointer-events-none">
+                    <circle
+                      r={storm.radius * 0.72}
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth="1.4"
+                      strokeDasharray="20 14"
+                      strokeOpacity="0.4"
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0"
+                        to="-360"
+                        dur="9s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                    <circle
+                      r={storm.radius * 0.45}
+                      fill="none"
+                      stroke="#fca5a5"
+                      strokeWidth="1.6"
+                      strokeDasharray="14 8"
+                      strokeOpacity="0.55"
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0"
+                        to="360"
+                        dur="6s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                  </g>
+                )}
+                {isMonster && (
+                  <g transform={`translate(${storm.x}, ${storm.y})`} className="pointer-events-none">
+                    <circle
+                      r={storm.radius * 0.78}
+                      fill="none"
+                      stroke="#a855f7"
+                      strokeWidth="1.5"
+                      strokeDasharray="18 12"
+                      strokeOpacity="0.45"
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0"
+                        to="360"
+                        dur="10s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                    <circle
+                      r={storm.radius * 0.52}
+                      fill="none"
+                      stroke="#c084fc"
+                      strokeWidth="1.2"
+                      strokeDasharray="12 8"
+                      strokeOpacity="0.4"
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0"
+                        to="-360"
+                        dur="7s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                  </g>
+                )}
 
                 {/* 4. Hazard Visual Sprite Artwork */}
                 <g transform={`translate(${storm.x}, ${storm.y})`}>
@@ -1060,6 +1196,21 @@ export default function RadarCanvas({
                   strokeDasharray="3 3"
                 />
 
+                {/* 4.5. Tactical Directional Bearing Rhumb Beam to Next Waypoint */}
+                {isMoving && ship.path && ship.path[ship.pathIndex] && (
+                  <line
+                    x1={ship.x}
+                    y1={ship.y}
+                    x2={ship.path[ship.pathIndex].x}
+                    y2={ship.path[ship.pathIndex].y}
+                    stroke={color}
+                    strokeWidth="1.2"
+                    strokeDasharray="4 3"
+                    strokeOpacity="0.5"
+                    className="pointer-events-none"
+                  />
+                )}
+
                 {/* 5. Animated Buoyancy Bobbing & Rocking */}
                 <g transform={`translate(${ship.x}, ${ship.y})`}>
                   <g>
@@ -1135,6 +1286,22 @@ export default function RadarCanvas({
                     repeatCount="indefinite"
                   />
                 </circle>
+
+                {/* 7.5. Fluttering Mast Admiral Pennant Flag */}
+                <polygon
+                  points={`${ship.x},${ship.y - 18} ${ship.x + (isFacingRight ? -9 : 9)},${ship.y - 21} ${ship.x},${ship.y - 24}`}
+                  fill={color}
+                  stroke="#fde68a"
+                  strokeWidth="0.5"
+                  className="pointer-events-none drop-shadow"
+                >
+                  <animate
+                    attributeName="points"
+                    values={`${ship.x},${ship.y - 18} ${ship.x + (isFacingRight ? -9 : 9)},${ship.y - 21} ${ship.x},${ship.y - 24}; ${ship.x},${ship.y - 18} ${ship.x + (isFacingRight ? -12 : 12)},${ship.y - 20} ${ship.x},${ship.y - 24}; ${ship.x},${ship.y - 18} ${ship.x + (isFacingRight ? -9 : 9)},${ship.y - 21} ${ship.x},${ship.y - 24}`}
+                    dur="0.85s"
+                    repeatCount="indefinite"
+                  />
+                </polygon>
 
                 {/* 8. Ship Name Banner */}
                 <rect

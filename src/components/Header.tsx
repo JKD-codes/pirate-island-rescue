@@ -63,63 +63,69 @@ export default function Header({
     bgClass: string;
     borderClass: string;
     iconColor: string;
+    glowClass: string;
   }[] = [
     {
       label: 'Stranded',
       value: totalSurvivors,
       icon: Skull,
       textColor: 'text-rose-300',
-      bgClass: 'bg-[#2b0c0c]',
-      borderClass: 'border-[#991b1b]',
+      bgClass: 'bg-gradient-to-b from-[#2d0e0e] to-[#1a0808]',
+      borderClass: 'border-rose-700/80',
       iconColor: 'text-rose-400',
+      glowClass: 'shadow-[0_0_12px_rgba(244,63,94,0.25)]',
     },
     {
       label: 'Rescued',
       value: totalRescued,
       icon: Coins,
       textColor: 'text-emerald-300',
-      bgClass: 'bg-[#122815]',
-      borderClass: 'border-[#15803d]',
+      bgClass: 'bg-gradient-to-b from-[#102a14] to-[#0a180b]',
+      borderClass: 'border-emerald-600/80',
       iconColor: 'text-emerald-400',
+      glowClass: 'shadow-[0_0_12px_rgba(16,185,129,0.25)]',
     },
     {
       label: 'Free Berths',
       value: fleetCapacity,
       icon: Ship,
       textColor: 'text-sky-300',
-      bgClass: 'bg-[#0e2133]',
-      borderClass: 'border-[#0369a1]',
+      bgClass: 'bg-gradient-to-b from-[#0c2238] to-[#071320]',
+      borderClass: 'border-sky-600/80',
       iconColor: 'text-sky-400',
+      glowClass: 'shadow-[0_0_12px_rgba(56,189,248,0.25)]',
     },
     {
       label: 'Sea Terrors',
       value: activeHazards,
       icon: ShieldAlert,
       textColor: 'text-purple-300',
-      bgClass: 'bg-[#260e2f]',
-      borderClass: 'border-[#7e22ce]',
+      bgClass: 'bg-gradient-to-b from-[#291038] to-[#170820]',
+      borderClass: 'border-purple-600/80',
       iconColor: 'text-purple-400',
+      glowClass: 'shadow-[0_0_12px_rgba(168,85,247,0.25)]',
     },
   ];
 
   return (
     <header className="flex flex-wrap items-center justify-between px-4 py-2 border-b-2 border-[#c89b3c]/80 bg-gradient-to-r from-[#170e08] via-[#24160b] to-[#170e08] shadow-[0_4px_25px_rgba(0,0,0,0.85)] gap-2 z-30 shrink-0 font-heading">
-      {/* ─── Left: Pirate Title & Coat of Arms ─── */}
+      {/* ─── Left: Pirate Title & Grand Admiralty Coat of Arms ─── */}
       <div className="flex items-center gap-3">
-        <div className="relative w-9 h-9 rounded-full bg-gradient-to-br from-[#d4af37] via-[#b48328] to-[#683f12] p-0.5 shadow-[0_0_12px_rgba(212,175,55,0.4)] flex items-center justify-center border border-[#f3e5ab] shrink-0">
-          <div className="w-full h-full rounded-full bg-[#170e08] flex items-center justify-center shadow-inner">
-            <Skull size={18} className="text-[#fde68a] drop-shadow" />
+        <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-[#fde68a] via-[#d4af37] to-[#854d0e] p-0.5 shadow-[0_0_16px_rgba(212,175,55,0.5)] flex items-center justify-center border-2 border-[#fef3c7] shrink-0">
+          <div className="w-full h-full rounded-full bg-gradient-to-b from-[#1c1007] to-[#0f0703] flex items-center justify-center shadow-inner relative">
+            <Skull size={19} className="text-[#fde68a] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" />
+            <div className="absolute -bottom-0.5 w-3.5 h-1 rounded-full bg-amber-400/60 blur-xs" />
           </div>
         </div>
         <div>
-          <h1 className="font-pirate text-xl md:text-2xl tracking-wider text-[#f3e5ab] uppercase leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] flex items-center gap-2">
+          <h1 className="font-pirate text-xl md:text-2xl tracking-wider text-[#f3e5ab] uppercase leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)] flex items-center gap-2">
             KRAKENWATCH
             <span className="text-[#c89b3c]/60 font-serif font-light text-sm">//</span>
             <span className="font-parchment text-amber-200/90 text-sm tracking-wider normal-case italic hidden sm:inline">
               High Seas Fleet Admiral
             </span>
           </h1>
-          <p className="text-[9px] text-[#c89b3c]/80 tracking-widest uppercase font-heading hidden sm:block">
+          <p className="text-[8.5px] text-[#c89b3c]/90 tracking-widest uppercase font-heading hidden sm:block">
             Archipelago Disaster Command • Sector 7G
           </p>
         </div>
@@ -223,14 +229,16 @@ export default function Header({
           return (
             <div
               key={chip.label}
-              className={`hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded border shadow-inner ${chip.bgClass} ${chip.borderClass}`}
+              className={`hidden xl:flex items-center gap-2 px-3 py-1 rounded-lg border-2 ${chip.bgClass} ${chip.borderClass} ${chip.glowClass}`}
             >
-              <ChipIcon size={14} className={chip.iconColor} />
+              <div className="p-1 rounded-full bg-black/40 border border-[#d4af37]/40 shadow-inner">
+                <ChipIcon size={13} className={chip.iconColor} />
+              </div>
               <div className="text-right">
-                <p className="text-[7.5px] text-[#c89b3c]/90 uppercase tracking-widest leading-none font-bold">
+                <p className="text-[7px] text-[#c89b3c]/90 uppercase tracking-widest leading-none font-bold">
                   {chip.label}
                 </p>
-                <p className={`text-[11.5px] font-heading font-extrabold ${chip.textColor} leading-tight`}>
+                <p className={`text-[12px] font-heading font-black ${chip.textColor} leading-tight`}>
                   {chip.value}
                 </p>
               </div>
@@ -239,13 +247,15 @@ export default function Header({
         })}
 
         {/* Admiral's Honor Rating / Efficiency */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[#c89b3c] bg-[#24170c] shadow-inner">
-          <Compass size={14} className="text-amber-400 animate-spin-slow" />
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg border-2 border-[#d4af37] bg-gradient-to-b from-[#2a1a0d] to-[#1a0f07] shadow-[0_0_15px_rgba(212,175,55,0.3)]">
+          <div className="w-5 h-5 rounded-full bg-[#3b2310] border border-amber-400/80 flex items-center justify-center shadow-inner">
+            <Compass size={12} className="text-amber-400 animate-spin-slow" />
+          </div>
           <div>
-            <p className="text-[7px] text-amber-400/80 uppercase tracking-widest leading-none font-bold">
+            <p className="text-[7px] text-amber-400/90 uppercase tracking-widest leading-none font-bold">
               Prowess
             </p>
-            <p className="text-[11.5px] font-heading font-extrabold text-[#f3e5ab] leading-tight">
+            <p className="text-[12px] font-heading font-black text-[#f3e5ab] leading-tight">
               {efficiencyScore}%
             </p>
           </div>

@@ -85,3 +85,18 @@ html, body, #root {
 button, a, select, input, [role="button"] {
   touch-action: manipulation;
 }
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 22s linear infinite;
+}
+
+.text-gold-shimmer {
+  background: linear-gradient(135deg, #fffbeb 0%, #fde68a 25%, #d4af37 50%, #b45309 75%, #fde68a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
