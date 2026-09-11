@@ -26,14 +26,14 @@ export default function RadarCanvas({
   const svgRef = useRef<SVGSVGElement>(null);
   const [dragging, setDragging] = useState<string | null>(null);
 
-  // Convert mouse event to SVG coordinates
+  // Convert mouse or touch event to SVG coordinates
   const toSVGPoint = useCallback(
-    (e: React.MouseEvent) => {
+    (clientX: number, clientY: number) => {
       const svg = svgRef.current;
       if (!svg) return { x: 0, y: 0 };
       const pt = svg.createSVGPoint();
-      pt.x = e.clientX;
-      pt.y = e.clientY;
+      pt.x = clientX;
+      pt.y = clientY;
       const ctm = svg.getScreenCTM();
       if (!ctm) return { x: 0, y: 0 };
       const svgP = pt.matrixTransform(ctm.inverse());
@@ -46,10 +46,27 @@ export default function RadarCanvas({
     setDragging(stormId);
   };
 
+  const handleTouchStart = (stormId: string, e: React.TouchEvent) => {
+    e.stopPropagation();
+    setDragging(stormId);
+  };
+
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       if (!dragging) return;
-      const { x, y } = toSVGPoint(e);
+      const { x, y } = toSVGPoint(e.clientX, e.clientY);
+      const cx = Math.max(0, Math.min(800, x));
+      const cy = Math.max(0, Math.min(600, y));
+      onStormDrag(dragging, cx, cy);
+    },
+    [dragging, toSVGPoint, onStormDrag]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!dragging || e.touches.length === 0) return;
+      const touch = e.touches[0];
+      const { x, y } = toSVGPoint(touch.clientX, touch.clientY);
       const cx = Math.max(0, Math.min(800, x));
       const cy = Math.max(0, Math.min(600, y));
       onStormDrag(dragging, cx, cy);
@@ -58,10 +75,11 @@ export default function RadarCanvas({
   );
 
   const handleMouseUp = () => setDragging(null);
+  const handleTouchEnd = () => setDragging(null);
 
   return (
-    <div className="flex-1 flex items-center justify-center p-3 min-w-0">
-      <div className="relative w-full max-w-[1000px] aspect-[4/3] rounded-lg border border-amber-500/15 bg-[#060a12] overflow-hidden shadow-[0_0_40px_rgba(56,189,248,0.04)]">
+    <div className="flex-1 flex items-center justify-center p-2 sm:p-3 min-w-0 w-full h-full overflow-hidden">
+      <div className="relative w-full max-w-[1050px] max-h-full aspect-[4/3] rounded-lg border border-amber-500/15 bg-[#060a12] overflow-hidden shadow-[0_0_40px_rgba(56,189,248,0.04)] flex items-center justify-center">
         {/* Corner decorations */}
         <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-sky-500/30 rounded-tl z-10" />
         <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-sky-500/30 rounded-tr z-10" />
@@ -93,10 +111,13 @@ export default function RadarCanvas({
           ref={svgRef}
           viewBox="0 0 800 600"
           preserveAspectRatio="xMidYMid meet"
-          className="w-full h-full select-none"
+          className="w-full h-full select-none touch-none"
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
         >
           <defs>
             {/* Storm pulsing glow */}
@@ -189,8 +210,9 @@ export default function RadarCanvas({
           {storms.map((storm) => (
             <g
               key={storm.id}
-              className="cursor-grab active:cursor-grabbing"
+              className="cursor-grab active:cursor-grabbing touch-none"
               onMouseDown={() => handleMouseDown(storm.id)}
+              onTouchStart={(e) => handleTouchStart(storm.id, e)}
             >
               {/* Danger zone fill */}
               <circle

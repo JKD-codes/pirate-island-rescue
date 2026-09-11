@@ -44,10 +44,10 @@ export default function ManualDispatchModal({
   const tc = TRIAGE_COLORS[island.triage];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="w-full max-w-md bg-[#0b1329] border border-amber-500/40 rounded-lg shadow-[0_0_50px_rgba(245,158,11,0.15)] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-4 animate-fade-in overflow-y-auto">
+      <div className="w-full max-w-md max-h-[90vh] flex flex-col bg-[#0b1329] border border-amber-500/40 rounded-lg shadow-[0_0_50px_rgba(245,158,11,0.15)] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/80">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/80 shrink-0">
           <div className="flex items-center gap-2">
             <Navigation size={16} className="text-amber-400" />
             <span className="text-xs font-mono font-bold uppercase tracking-wider text-amber-200">
@@ -63,7 +63,7 @@ export default function ManualDispatchModal({
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4 font-mono text-xs">
+        <div className="p-4 space-y-4 font-mono text-xs overflow-y-auto flex-1">
           {/* Ship & Island summary */}
           <div className="grid grid-cols-2 gap-3">
             {/* Vessel Card */}

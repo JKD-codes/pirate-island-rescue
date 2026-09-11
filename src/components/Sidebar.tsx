@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import {
   Compass,
   Play,
@@ -64,6 +64,7 @@ export default function Sidebar({
   onCloseDrawer,
 }: SidebarProps) {
   const logEndRef = useRef<HTMLDivElement>(null);
+  const [mobileTab, setMobileTab] = useState<'console' | 'fleet' | 'islands' | 'logs'>('console');
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -71,17 +72,16 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`w-[360px] sm:w-[380px] max-w-[90vw] shrink-0 border-l border-amber-500/15 bg-[#0b1329] flex flex-col overflow-hidden select-none z-40 transition-transform duration-300 fixed inset-y-0 right-0 shadow-2xl lg:relative lg:translate-x-0 ${
+      className={`w-[340px] sm:w-[380px] max-w-[92vw] shrink-0 border-l border-amber-500/15 bg-[#0b1329] flex flex-col overflow-hidden select-none z-40 transition-transform duration-300 fixed inset-y-0 right-0 shadow-2xl lg:relative lg:translate-x-0 ${
         isDrawerOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
       }`}
     >
-      {/* ─── Action Buttons ─── */}
-      <div className="px-4 pt-3 pb-3 space-y-2 border-b border-slate-700/40">
-        {/* Mobile Drawer Close Header */}
-        <div className="flex items-center justify-between lg:hidden pb-1 border-b border-slate-800">
+      {/* ─── Mobile Drawer Top Header & Tabs ─── */}
+      <div className="lg:hidden px-3 pt-2.5 pb-2 border-b border-slate-800/80 bg-slate-900/60">
+        <div className="flex items-center justify-between pb-2">
           <span className="text-xs font-mono font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
             <Compass size={13} className="text-amber-400" />
-            Command Deck Drawer
+            Command Deck
           </span>
           <button
             onClick={onCloseDrawer}
@@ -91,6 +91,53 @@ export default function Sidebar({
           </button>
         </div>
 
+        {/* Tab switchers for mobile drawer */}
+        <div className="grid grid-cols-4 gap-1 p-0.5 bg-slate-950 rounded-md border border-slate-800 text-[9.5px] font-mono">
+          <button
+            onClick={() => setMobileTab('console')}
+            className={`py-1 rounded text-center font-semibold transition-all ${
+              mobileTab === 'console'
+                ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Console
+          </button>
+          <button
+            onClick={() => setMobileTab('fleet')}
+            className={`py-1 rounded text-center font-semibold transition-all ${
+              mobileTab === 'fleet'
+                ? 'bg-sky-500/25 text-sky-300 border border-sky-500/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Fleet
+          </button>
+          <button
+            onClick={() => setMobileTab('islands')}
+            className={`py-1 rounded text-center font-semibold transition-all ${
+              mobileTab === 'islands'
+                ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Islands
+          </button>
+          <button
+            onClick={() => setMobileTab('logs')}
+            className={`py-1 rounded text-center font-semibold transition-all ${
+              mobileTab === 'logs'
+                ? 'bg-purple-500/25 text-purple-300 border border-purple-500/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Log
+          </button>
+        </div>
+      </div>
+
+      {/* ─── Action Buttons / Console ─── */}
+      <div className={`px-4 pt-3 pb-3 space-y-2 border-b border-slate-700/40 shrink-0 ${mobileTab !== 'console' ? 'hidden lg:block' : 'block'}`}>
         <SectionLabel icon={<Compass size={12} />} text="Command Console" />
 
         {/* Primary Controls */}
@@ -166,7 +213,7 @@ export default function Sidebar({
       </div>
 
       {/* ─── Fleet Manifest ─── */}
-      <div className="px-4 py-2.5 border-b border-slate-700/40">
+      <div className={`px-4 py-2.5 border-b border-slate-700/40 overflow-y-auto max-h-[40vh] lg:max-h-none shrink-0 ${mobileTab !== 'fleet' ? 'hidden lg:block' : 'block flex-1'}`}>
         <SectionLabel icon={<Ship size={12} />} text="Fleet Manifest" />
         <div className="mt-1.5 space-y-2">
           {ships.map((ship, idx) => {
@@ -256,7 +303,7 @@ export default function Sidebar({
       </div>
 
       {/* ─── Island Triage Status ─── */}
-      <div className="px-4 py-2.5 border-b border-slate-700/40">
+      <div className={`px-4 py-2.5 border-b border-slate-700/40 overflow-y-auto max-h-[35vh] lg:max-h-none shrink-0 ${mobileTab !== 'islands' ? 'hidden lg:block' : 'block flex-1'}`}>
         <SectionLabel icon={<Users size={12} />} text="Island Triage Status" />
         <div className="mt-1.5 space-y-1.5">
           {islands.map((island) => {
@@ -331,7 +378,7 @@ export default function Sidebar({
       </div>
 
       {/* ─── Mission Incident Log ─── */}
-      <div className="flex-1 flex flex-col min-h-0 px-4 py-2.5">
+      <div className={`flex-1 flex flex-col min-h-0 px-4 py-2.5 ${mobileTab !== 'logs' ? 'hidden lg:flex' : 'flex'}`}>
         <SectionLabel
           icon={<AlertTriangle size={12} />}
           text="Mission Incident Log"

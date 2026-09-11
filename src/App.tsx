@@ -597,7 +597,7 @@ function App() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#070b14] text-slate-200 overflow-hidden select-none">
+    <div className="h-[100dvh] min-h-[100dvh] w-full flex flex-col bg-[#070b14] text-slate-200 overflow-hidden select-none">
       <Header
         totalSurvivors={totalSurvivors}
         totalRescued={totalRescued}
