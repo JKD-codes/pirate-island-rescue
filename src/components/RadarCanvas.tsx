@@ -96,9 +96,14 @@ export default function RadarCanvas({
   }, [activeDragId, clientToSVG, onStormDrag, onStormDragEnd]);
 
   return (
-    <div className="flex-1 flex items-center justify-center p-3 min-w-0 bg-[#0d0704]">
+    <div
+      className="flex-1 flex items-center justify-center p-2 sm:p-3.5 min-w-0 bg-[#0d0704] bg-cover bg-center relative overflow-hidden"
+      style={{
+        backgroundImage: `radial-gradient(circle at center, rgba(13, 7, 4, 0.45) 0%, rgba(13, 7, 4, 0.82) 75%, rgba(10, 5, 3, 0.98) 100%), url('/war_room_desk_bg.png')`,
+      }}
+    >
       {/* ─── Spanish Galleon Teak & Brass Studded Maritime Chart Frame ─── */}
-      <div className="relative w-full max-w-[1000px] aspect-[4/3] rounded-xl border-[3px] border-[#c89b3c]/80 bg-[#05111b] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.95)] ring-4 ring-[#2c1808]">
+      <div className="relative w-full max-w-[1000px] aspect-[4/3] rounded-xl border-[3px] border-[#c89b3c]/80 bg-[#05111b] overflow-hidden shadow-[0_15px_60px_rgba(0,0,0,0.95)] ring-4 ring-[#2c1808]">
         {/* Ornate Antique Brass Studded Corners */}
         <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-[#d4af37] rounded-tl z-10 pointer-events-none drop-shadow">
           <div className="w-1.5 h-1.5 rounded-full bg-[#f3e5ab] m-1 shadow-[0_0_4px_#f3e5ab]" />
@@ -444,6 +449,15 @@ export default function RadarCanvas({
                   }
                 }}
               >
+                {/* Mobile-Friendly Invisible Touch Expander Target */}
+                <circle
+                  cx={island.x}
+                  cy={island.y + 10}
+                  r={46}
+                  fill="transparent"
+                  className={isClickable ? 'cursor-pointer' : undefined}
+                />
+
                 {/* 1. Shallow Lagoon Reef Water Aura & Ripple */}
                 <ellipse
                   cx={island.x}
@@ -925,11 +939,13 @@ export default function RadarCanvas({
               dy = targetWp.y - ship.y;
             }
 
+            const dist = Math.hypot(dx, dy) || 1;
+            const headingDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+
             // Sprite naturally faces down-left. If sailing eastward (dx > 0.05), flip horizontally
             const isFacingRight = dx > 0.05;
 
             // Dynamic pitch angle tilting into wave trajectory (-14 to +14 deg)
-            const dist = Math.hypot(dx, dy) || 1;
             const pitchDeg = isMoving
               ? Math.max(-14, Math.min(14, (dy / dist) * 16)) * (isFacingRight ? -1 : 1)
               : 0;
@@ -944,51 +960,47 @@ export default function RadarCanvas({
                   }
                 }}
               >
-                {/* 1. Dynamic Water Foam Wake when sailing */}
-                {isMoving && (
-                  <g className="pointer-events-none">
-                    <ellipse
-                      cx={ship.x + (isFacingRight ? -22 : 22)}
-                      cy={ship.y + 12}
-                      rx={9}
-                      ry={3.5}
-                      fill="#ffffff"
-                      fillOpacity="0.4"
-                    >
-                      <animate
-                        attributeName="rx"
-                        values="6;16;6"
-                        dur="0.8s"
-                        repeatCount="indefinite"
-                      />
-                      <animate
-                        attributeName="opacity"
-                        values="0.6;0.1;0.6"
-                        dur="0.8s"
-                        repeatCount="indefinite"
-                      />
+                {/* Mobile-Friendly Invisible Touch Expander Target */}
+                <circle
+                  cx={ship.x}
+                  cy={ship.y}
+                  r={38}
+                  fill="transparent"
+                  className={canSelect ? 'cursor-pointer' : undefined}
+                />
+
+                {/* 1. Dynamic Foam Stern Wake strictly aligned with voyage direction */}
+                {isMoving && dist > 1 && (
+                  <g
+                    transform={`translate(${ship.x}, ${ship.y}) rotate(${headingDeg})`}
+                    className="pointer-events-none"
+                  >
+                    {/* Stern V-shaped wake displacement lines */}
+                    <path
+                      d="M -16 0 L -36 -10 M -16 0 L -36 10"
+                      fill="none"
+                      stroke="#e0f2fe"
+                      strokeWidth="1.6"
+                      strokeOpacity="0.45"
+                      strokeLinecap="round"
+                    />
+                    {/* Inner high-speed foam turbulence */}
+                    <ellipse cx={-20} cy={0} rx={10} ry={4} fill="#ffffff" fillOpacity="0.4">
+                      <animate attributeName="rx" values="7;15;7" dur="0.75s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0.6;0.15;0.6" dur="0.75s" repeatCount="indefinite" />
                     </ellipse>
-                    <ellipse
-                      cx={ship.x + (isFacingRight ? -30 : 30)}
-                      cy={ship.y + 14}
-                      rx={13}
-                      ry={4.5}
-                      fill="#38bdf8"
-                      fillOpacity="0.25"
-                    >
-                      <animate
-                        attributeName="rx"
-                        values="9;22;9"
-                        dur="1.1s"
-                        repeatCount="indefinite"
-                      />
-                      <animate
-                        attributeName="opacity"
-                        values="0.4;0.05;0.4"
-                        dur="1.1s"
-                        repeatCount="indefinite"
-                      />
+                    {/* Outer rolling wake wave */}
+                    <ellipse cx={-36} cy={0} rx={16} ry={6.5} fill="#38bdf8" fillOpacity="0.22">
+                      <animate attributeName="rx" values="11;24;11" dur="1.1s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0.35;0.05;0.35" dur="1.1s" repeatCount="indefinite" />
                     </ellipse>
+                    {/* Bubbling foam eddies */}
+                    <circle cx={-44} cy={-5} r={2} fill="#bae6fd" fillOpacity="0.35">
+                      <animate attributeName="r" values="1;3;1" dur="0.9s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx={-48} cy={4} r={2.2} fill="#bae6fd" fillOpacity="0.35">
+                      <animate attributeName="r" values="1.5;3.5;1.5" dur="1s" repeatCount="indefinite" />
+                    </circle>
                   </g>
                 )}
 
@@ -1069,8 +1081,13 @@ export default function RadarCanvas({
                       additive="sum"
                     />
 
-                    {/* Flipped & pitched boat sprite image */}
-                    <g transform={`scale(${isFacingRight ? -1 : 1}, 1) rotate(${pitchDeg})`}>
+                    {/* Flipped & smoothly oriented boat sprite image */}
+                    <g
+                      transform={`scale(${isFacingRight ? -1 : 1}, 1) rotate(${pitchDeg})`}
+                      style={{
+                        transition: 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)',
+                      }}
+                    >
                       <image
                         href={boatImg}
                         x={-28}
@@ -1078,7 +1095,7 @@ export default function RadarCanvas({
                         width={56}
                         height={48}
                         preserveAspectRatio="xMidYMid meet"
-                        className="drop-shadow-[0_6px_12px_rgba(0,0,0,0.7)] filter"
+                        className="drop-shadow-[0_6px_14px_rgba(0,0,0,0.75)] filter"
                       />
                     </g>
                   </g>

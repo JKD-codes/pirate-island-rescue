@@ -46,6 +46,74 @@ export function getEngulfingStorm(
 }
 
 /**
+ * Predicts storm positions over a future time horizon (t = 2 to 16 seconds)
+ * and finds the optimal safe haven waypoint near the target focus that will
+ * remain clear of moving danger corridors.
+ */
+export function findPredictiveSafeHaven(
+  shipPos: { x: number; y: number },
+  focusPoint: { x: number; y: number },
+  storms: Storm[]
+): { x: number; y: number } {
+  const candidateRadii = [60, 90, 120, 160, 200];
+  const angles = [0, 45, 90, 135, 180, 225, 270, 315];
+  const timeHorizons = [0, 3, 6, 9, 12, 16];
+
+  let bestPoint: { x: number; y: number } | null = null;
+  let bestScore = -Infinity;
+
+  for (const r of candidateRadii) {
+    for (const deg of angles) {
+      const rad = (deg * Math.PI) / 180;
+      const px = Math.round(focusPoint.x + Math.cos(rad) * r);
+      const py = Math.round(focusPoint.y + Math.sin(rad) * r);
+
+      // Boundary safety
+      if (px < 50 || px > 750 || py < 50 || py > 550) continue;
+
+      let minClearance = Infinity;
+      let isNeverEngulfed = true;
+
+      for (const t of timeHorizons) {
+        for (const s of storms) {
+          const vx = s.vx ?? 0;
+          const vy = s.vy ?? 0;
+          let projX = s.x + vx * 0.4 * t;
+          let projY = s.y + vy * 0.4 * t;
+
+          // Chart boundary bounce reflection
+          if (projX < 110) projX = 110 + (110 - projX);
+          if (projX > 690) projX = 690 - (projX - 690);
+          if (projY < 100) projY = 100 + (100 - projY);
+          if (projY > 500) projY = 500 - (projY - 500);
+
+          const d = Math.hypot(px - projX, py - projY);
+          const clearance = d - (s.radius + 25);
+          if (clearance < minClearance) minClearance = clearance;
+          if (clearance <= 0) isNeverEngulfed = false;
+        }
+      }
+
+      if (!isNeverEngulfed) continue;
+
+      const distToShip = Math.hypot(px - shipPos.x, py - shipPos.y);
+      const distToFocus = Math.hypot(px - focusPoint.x, py - focusPoint.y);
+      const score = minClearance * 2 - distToShip * 0.5 - distToFocus * 0.3;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestPoint = { x: px, y: py };
+      }
+    }
+  }
+
+  return bestPoint || {
+    x: Math.max(50, Math.min(750, shipPos.x)),
+    y: Math.max(50, Math.min(550, shipPos.y)),
+  };
+}
+
+/**
  * Simulates one tick:
  * - Updates storm positions if autoRoam is active.
  * - Handles ship movement, obstacle checking, holding patterns when trapped or blocked,
@@ -113,11 +181,98 @@ export function stepSimulation(
 
     // ─── Case A: Ship is HOLDING (Sheltering from storm or waiting for corridor) ───
     if (ship.status === 'holding') {
+      // 1. Dynamic Hazard Evasion while in Holding Status
+      // If any storm drifts or is placed within danger perimeter (radius + 45px), maneuver away actively!
+      const encroachingStorms = nextStorms.filter(
+        (s) => Math.hypot(ship.x - s.x, ship.y - s.y) <= s.radius + 45
+      );
+
+      if (encroachingStorms.length > 0) {
+        let pushX = 0;
+        let pushY = 0;
+        for (const s of encroachingStorms) {
+          const d = Math.hypot(ship.x - s.x, ship.y - s.y) || 1;
+          const force = Math.max(0.6, (s.radius + 50 - d) / (s.radius + 50));
+          pushX += ((ship.x - s.x) / d) * force;
+          pushY += ((ship.y - s.y) / d) * force;
+          if (s.vx || s.vy) {
+            pushX += (s.vx ?? 0) * 0.4;
+            pushY += (s.vy ?? 0) * 0.4;
+          }
+        }
+        const pushMag = Math.hypot(pushX, pushY) || 1;
+        const evadeDist = ship.speed * speedMultiplier * 1.1;
+        const newX = Math.max(50, Math.min(750, ship.x + (pushX / pushMag) * evadeDist));
+        const newY = Math.max(50, Math.min(550, ship.y + (pushY / pushMag) * evadeDist));
+        ship.x = Math.round(newX * 10) / 10;
+        ship.y = Math.round(newY * 10) / 10;
+
+        if (Math.random() < 0.05) {
+          logs.push({
+            timestamp: timestamp(),
+            message: `⚡ [TACTICAL EVASION] ${ship.name} heaved-to maneuver: steered clear of encroaching ${encroachingStorms[0].name} to open waters (${Math.round(ship.x)}, ${Math.round(ship.y)}).`,
+            type: 'warning',
+          });
+        }
+      }
+
       const currentEngulfing = getEngulfingStorm({ x: ship.x, y: ship.y }, nextStorms);
       const targetIsland = nextIslands.find((i) => i.id === ship.targetIslandId);
       const islandEngulfing = targetIsland
         ? getEngulfingStorm({ x: targetIsland.x, y: targetIsland.y }, nextStorms)
         : null;
+
+      // 2. Opportunistic retasking if target island is fully engulfed
+      if (targetIsland && islandEngulfing) {
+        const availableCap = ship.capacity - ship.load;
+        if (availableCap > 0) {
+          const alternativeSafeIslands = nextIslands
+            .filter((i) => i.id !== targetIsland.id && (i.survivors - i.rescued) > 0)
+            .filter((i) => !getEngulfingStorm({ x: i.x, y: i.y }, nextStorms, 15))
+            .map((i) => ({
+              ...i,
+              urgency: calculateUrgencyIndex(i, nextStorms),
+              dist: Math.hypot(ship.x - i.x, ship.y - i.y),
+            }))
+            .sort((a, b) => b.urgency - a.urgency || a.dist - b.dist);
+
+          if (alternativeSafeIslands.length > 0) {
+            const bestAlt = alternativeSafeIslands[0];
+            const altPath = runAStar(
+              { x: ship.x, y: ship.y },
+              { x: bestAlt.x, y: bestAlt.y },
+              nextStorms
+            );
+            if (altPath.length > 1) {
+              ship.targetIslandId = bestAlt.id;
+              ship.path = altPath;
+              ship.pathIndex = 1;
+              ship.status = 'en-route';
+              logs.push({
+                timestamp: timestamp(),
+                message: `🚨 [ENGULFED DIVERT] ${targetIsland.name} is besieged by ${islandEngulfing.name}! ${ship.name} broke holding to rescue ${bestAlt.survivors - bestAlt.rescued} survivors at safe atoll ${bestAlt.name}!`,
+                type: 'warning',
+              });
+              continue;
+            }
+          } else {
+            // No safe islands available: steer towards predictive safe haven outside the storm's moving path!
+            const safeHaven = findPredictiveSafeHaven(
+              { x: ship.x, y: ship.y },
+              { x: targetIsland.x, y: targetIsland.y },
+              nextStorms
+            );
+            const distToHaven = Math.hypot(ship.x - safeHaven.x, ship.y - safeHaven.y);
+            if (distToHaven > 18) {
+              const dx = safeHaven.x - ship.x;
+              const dy = safeHaven.y - ship.y;
+              const dh = Math.hypot(dx, dy) || 1;
+              ship.x = Math.round((ship.x + (dx / dh) * moveDist) * 10) / 10;
+              ship.y = Math.round((ship.y + (dy / dh) * moveDist) * 10) / 10;
+            }
+          }
+        }
+      }
 
       // Check if both ship's immediate position and destination are clear
       if (!currentEngulfing && !islandEngulfing) {
@@ -252,16 +407,64 @@ export function stepSimulation(
       if (targetIsland) {
         const islandStorm = getEngulfingStorm(
           { x: targetIsland.x, y: targetIsland.y },
-          nextStorms
+          nextStorms,
+          20
         );
         if (islandStorm) {
+          const availableCap = ship.capacity - ship.load;
+          // 1. Check if other unevacuated islands are safe to rescue!
+          const alternativeSafeIslands = nextIslands
+            .filter((i) => i.id !== targetIsland.id && (i.survivors - i.rescued) > 0)
+            .filter((i) => !getEngulfingStorm({ x: i.x, y: i.y }, nextStorms, 15))
+            .map((i) => ({
+              ...i,
+              urgency: calculateUrgencyIndex(i, nextStorms),
+              dist: Math.hypot(ship.x - i.x, ship.y - i.y),
+            }))
+            .sort((a, b) => b.urgency - a.urgency || a.dist - b.dist);
+
+          if (availableCap > 0 && alternativeSafeIslands.length > 0) {
+            const nextTarget = alternativeSafeIslands[0];
+            const newPath = runAStar(
+              { x: ship.x, y: ship.y },
+              { x: nextTarget.x, y: nextTarget.y },
+              nextStorms
+            );
+            if (newPath.length > 1) {
+              ship.targetIslandId = nextTarget.id;
+              ship.path = newPath;
+              ship.pathIndex = 1;
+              ship.status = 'en-route';
+              logs.push({
+                timestamp: timestamp(),
+                message: `⚡ [DYNAMIC RETASKING] Destination ${targetIsland.name} is besieged by ${islandStorm.name}! ${ship.name} re-routed to rescue ${nextTarget.survivors - nextTarget.rescued} castaways at safe atoll ${nextTarget.name}!`,
+                type: 'warning',
+              });
+              continue;
+            }
+          }
+
+          // 2. If no other safe islands exist, navigate to predictive safe haven!
           const distToStorm = Math.hypot(ship.x - islandStorm.x, ship.y - islandStorm.y);
-          // If cutter is nearing the storm perimeter, HEAVE TO (hold outside danger ring)
-          if (distToStorm <= islandStorm.radius + 35) {
+          if (distToStorm <= islandStorm.radius + 40) {
+            const safeHaven = findPredictiveSafeHaven(
+              { x: ship.x, y: ship.y },
+              { x: targetIsland.x, y: targetIsland.y },
+              nextStorms
+            );
             ship.status = 'holding';
+            const havenPath = runAStar(
+              { x: ship.x, y: ship.y },
+              { x: safeHaven.x, y: safeHaven.y },
+              nextStorms
+            );
+            if (havenPath.length > 1) {
+              ship.path = havenPath;
+              ship.pathIndex = 1;
+            }
             logs.push({
               timestamp: timestamp(),
-              message: `[STORM SHELTER] ${islandStorm.name} is directly over ${targetIsland.name}! ${ship.name} heaved-to in open water — waiting for storm to pass.`,
+              message: `🧭 [PREDICTIVE HAVEN] All reachable atolls engulfed! ${ship.name} navigating to safe haven waypoint (${Math.round(safeHaven.x)}, ${Math.round(safeHaven.y)}) clear of ${islandStorm.name}'s path.`,
               type: 'warning',
             });
             continue;

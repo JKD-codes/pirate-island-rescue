@@ -40,10 +40,10 @@ export default function ManualDispatchModal({
   const tc = TRIAGE_COLORS[island.triage];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fade-in font-heading">
-      <div className="w-full max-w-md bg-gradient-to-b from-[#1e130a] via-[#160d06] to-[#100804] border-2 border-[#d4af37] rounded-xl shadow-[0_0_60px_rgba(0,0,0,0.95)] overflow-hidden ring-4 ring-[#2c1808]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-2 sm:p-4 animate-fade-in font-heading">
+      <div className="w-full max-w-md max-h-[95vh] overflow-y-auto bg-gradient-to-b from-[#1e130a] via-[#160d06] to-[#100804] border-2 border-[#d4af37] rounded-xl shadow-[0_0_60px_rgba(0,0,0,0.95)] overflow-hidden ring-4 ring-[#2c1808]">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#8b5a2b] bg-[#24150b]">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-5 sm:py-3.5 border-b border-[#8b5a2b] bg-[#24150b]">
           <div className="flex items-center gap-2">
             <ScrollText size={16} className="text-[#d4af37]" />
             <span className="text-xs font-heading font-extrabold uppercase tracking-widest text-[#f3e5ab]">
@@ -59,10 +59,10 @@ export default function ManualDispatchModal({
         </div>
 
         {/* Content */}
-        <div className="p-5 space-y-4 text-xs">
+        <div className="p-3.5 sm:p-5 space-y-3 sm:space-y-4 text-xs">
           {/* Liberated Island Warning Alert */}
           {isIslandSafe && (
-            <div className="bg-[#0b1f14] border border-[#10b981]/60 rounded-lg p-3 flex items-center gap-2.5 text-emerald-300 shadow">
+            <div className="bg-[#0b1f14] border border-[#10b981]/60 rounded-lg p-2.5 sm:p-3 flex items-center gap-2.5 text-emerald-300 shadow">
               <ShieldCheck size={18} className="text-emerald-400 shrink-0" />
               <div>
                 <p className="font-bold uppercase tracking-wider text-[10.5px]">
@@ -76,7 +76,7 @@ export default function ManualDispatchModal({
           )}
 
           {/* Ship & Island summary */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             {/* Vessel Card */}
             <div className="bg-[#120a05] border border-[#6b4423] rounded-lg p-3 flex items-center gap-2.5 shadow-inner">
               <div className="w-11 h-11 rounded-md bg-[#0a0502] border border-[#d4af37]/70 flex items-center justify-center overflow-hidden p-0.5 shrink-0 shadow">

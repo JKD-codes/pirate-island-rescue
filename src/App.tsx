@@ -25,7 +25,17 @@ import {
   playVictoryFanfare,
   setSoundMuted,
 } from './utils/audio';
-import { Smartphone, X, Compass } from 'lucide-react';
+import {
+  Smartphone,
+  X,
+  Compass,
+  CheckCircle2,
+  Trophy,
+  Zap,
+  Play,
+  Pause,
+  Navigation,
+} from 'lucide-react';
 
 function App() {
   const [selectedScenarioId, setSelectedScenarioId] = useState('scenario-1');
@@ -667,7 +677,7 @@ function App() {
         onToggleDrawer={() => setIsDrawerOpen(!isDrawerOpen)}
       />
 
-      <div className="flex-1 flex min-h-0 relative bg-[#0d0805]">
+      <div className="flex-1 flex min-h-0 relative bg-[#0d0805] pb-14 lg:pb-0">
         <RadarCanvas
           islands={islands}
           ships={ships}
@@ -707,9 +717,9 @@ function App() {
 
       {/* ─── Mobile Portrait Orientation Advisor Banner ─── */}
       {isPortraitMobile && showRotateTip && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-35 px-4 py-2 rounded-full glass-modal border border-amber-400/50 text-[11px] font-outfit font-medium text-amber-200 flex items-center gap-2.5 shadow-[0_10px_35px_rgba(0,0,0,0.75)] animate-bounce-slow max-w-[90vw]">
+        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-35 px-4 py-2 rounded-full glass-modal border border-amber-400/50 text-[11px] font-outfit font-medium text-amber-200 flex items-center gap-2.5 shadow-[0_10px_35px_rgba(0,0,0,0.75)] animate-bounce-slow max-w-[90vw]">
           <Smartphone className="text-amber-400 rotate-90 animate-pulse shrink-0" size={15} />
-          <span className="truncate">Rotate device to landscape for full tactical war-room view</span>
+          <span className="truncate">Rotate device to landscape for full war-room view</span>
           <button
             onClick={() => setShowRotateTip(false)}
             className="text-slate-400 hover:text-white p-1 rounded-full cursor-pointer shrink-0"
@@ -720,16 +730,74 @@ function App() {
         </div>
       )}
 
-      {/* Mobile Floating Quick Command Deck Button (Portrait / Landscape FAB) */}
-      {!isDrawerOpen && (
+      {/* ─── Mobile / Tablet Dedicated Bottom Command Deck (1-Thumb Ergonomics) ─── */}
+      <nav className="lg:hidden fixed bottom-2 left-2 right-2 z-30 flex items-center justify-around px-2 py-1.5 rounded-xl bg-gradient-to-r from-[#1b1008]/95 via-[#29170b]/95 to-[#1b1008]/95 border-2 border-[#c89b3c]/80 shadow-[0_10px_35px_rgba(0,0,0,0.95)] backdrop-blur-md">
+        {/* Directives Modal */}
+        <button
+          onClick={() => setIsRequirementsModalOpen(true)}
+          className="flex flex-col items-center gap-0.5 px-2 py-1 rounded text-emerald-400 hover:text-emerald-300 active:scale-90 transition-transform cursor-pointer"
+          title="Directives [5/5]"
+        >
+          <CheckCircle2 size={16} />
+          <span className="text-[8.5px] font-heading font-extrabold uppercase tracking-tight">Directives</span>
+        </button>
+
+        {/* Captain's Trial Benchmark */}
+        <button
+          onClick={handleRunBenchmark}
+          className="flex flex-col items-center gap-0.5 px-2 py-1 rounded text-amber-400 hover:text-amber-300 active:scale-90 transition-transform cursor-pointer"
+          title="Run Captain's Trial Benchmark"
+        >
+          <Trophy size={16} />
+          <span className="text-[8.5px] font-heading font-extrabold uppercase tracking-tight">Trial</span>
+        </button>
+
+        {/* 1-Click Algorithmic Solver */}
+        <button
+          onClick={handleSolve}
+          className="flex flex-col items-center gap-0.5 px-2 py-1 rounded text-[#fde68a] hover:text-white active:scale-90 transition-transform cursor-pointer"
+          title="Solve Dispatch Plan (A* Heuristic)"
+        >
+          <Zap size={16} className="text-[#f59e0b]" />
+          <span className="text-[8.5px] font-heading font-extrabold uppercase tracking-tight">Solve</span>
+        </button>
+
+        {/* Play / Pause Toggle */}
+        <button
+          onClick={handleToggleSimulation}
+          className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded active:scale-90 transition-transform cursor-pointer ${
+            isRunning ? 'text-rose-400' : 'text-sky-400'
+          }`}
+          title={isRunning ? 'Halt Fleet' : 'Set Sail'}
+        >
+          {isRunning ? <Pause size={16} /> : <Play size={16} />}
+          <span className="text-[8.5px] font-heading font-extrabold uppercase tracking-tight">
+            {isRunning ? 'Halt' : 'Sail'}
+          </span>
+        </button>
+
+        {/* Royal Charter Orders Toggle */}
+        <button
+          onClick={handleToggleManualDispatch}
+          className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded active:scale-90 transition-transform cursor-pointer ${
+            isManualDispatchMode ? 'text-[#f59e0b]' : 'text-amber-200/80 hover:text-amber-100'
+          }`}
+          title="Manual Charter Orders"
+        >
+          <Navigation size={16} className={isManualDispatchMode ? 'animate-pulse text-amber-400' : ''} />
+          <span className="text-[8.5px] font-heading font-extrabold uppercase tracking-tight">Charter</span>
+        </button>
+
+        {/* Quarterdeck Console Drawer */}
         <button
           onClick={() => setIsDrawerOpen(true)}
-          className="lg:hidden fixed bottom-4 right-4 z-30 w-11 h-11 rounded-full glass-card border border-amber-400/60 bg-gradient-to-br from-amber-500/20 to-amber-500/5 text-amber-300 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.25)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
-          title="Open Command Deck"
+          className="flex flex-col items-center gap-0.5 px-2 py-1 rounded text-amber-300 hover:text-amber-100 active:scale-90 transition-transform cursor-pointer"
+          title="Open Quarterdeck Drawer"
         >
-          <Compass size={20} className="animate-spin-slow" />
+          <Compass size={16} className="animate-spin-slow" />
+          <span className="text-[8.5px] font-heading font-extrabold uppercase tracking-tight">Console</span>
         </button>
-      )}
+      </nav>
 
       {/* Interactive Manual Dispatch Popover Modal */}
       <ManualDispatchModal

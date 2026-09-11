@@ -68,7 +68,7 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`w-[360px] sm:w-[400px] max-w-[92vw] shrink-0 border-l-2 border-[#8b5a2b] bg-gradient-to-b from-[#180f08] via-[#140b05] to-[#100804] flex flex-col overflow-hidden select-none z-40 transition-transform duration-300 fixed inset-y-0 right-0 shadow-2xl lg:relative lg:translate-x-0 font-heading ${
+      className={`w-[360px] sm:w-[400px] max-w-[92vw] shrink-0 border-l-2 border-[#8b5a2b] bg-gradient-to-b from-[#180f08] via-[#140b05] to-[#100804] flex flex-col overflow-hidden select-none z-40 transition-transform duration-300 fixed inset-y-0 right-0 shadow-2xl lg:relative lg:translate-x-0 font-heading pb-6 lg:pb-0 ${
         isDrawerOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
       }`}
     >

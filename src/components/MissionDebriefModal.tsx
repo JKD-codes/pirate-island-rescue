@@ -26,19 +26,19 @@ export default function MissionDebriefModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in font-heading">
-      <div className="w-full max-w-lg bg-gradient-to-b from-[#1c1109] via-[#140b05] to-[#0c0603] border-2 border-[#d4af37] rounded-xl shadow-[0_0_80px_rgba(0,0,0,0.95)] overflow-hidden ring-4 ring-[#2c1808]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-2 sm:p-4 animate-fade-in font-heading">
+      <div className="w-full max-w-lg max-h-[94vh] overflow-y-auto bg-gradient-to-b from-[#1c1109] via-[#140b05] to-[#0c0603] border-2 border-[#d4af37] rounded-xl shadow-[0_0_80px_rgba(0,0,0,0.95)] overflow-hidden ring-4 ring-[#2c1808]">
         {/* Ornate Gold Banner */}
-        <div className="bg-gradient-to-r from-[#2a1708] via-[#3a200b] to-[#2a1708] border-b border-[#8b5a2b] px-5 py-3.5 flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-b from-[#f59e0b] to-[#b45309] border border-[#fde68a] flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.5)]">
+        <div className="bg-gradient-to-r from-[#2a1708] via-[#3a200b] to-[#2a1708] border-b border-[#8b5a2b] px-4 py-3 sm:px-5 sm:py-3.5 flex items-center justify-between shadow-md shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-b from-[#f59e0b] to-[#b45309] border border-[#fde68a] flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.5)] shrink-0">
               <Trophy className="text-[#1c0d02]" size={18} />
             </div>
             <div>
-              <h2 className="text-sm font-extrabold uppercase tracking-[0.18em] text-[#fef3c7] drop-shadow">
+              <h2 className="text-xs sm:text-sm font-extrabold uppercase tracking-[0.16em] text-[#fef3c7] drop-shadow">
                 Captain's Council // Admiralty Debrief
               </h2>
-              <p className="text-[10px] text-[#d4af37] uppercase tracking-widest font-parchment">
+              <p className="text-[9px] sm:text-[10px] text-[#d4af37] uppercase tracking-widest font-parchment">
                 {isBenchmarkMode ? 'Official Royal Benchmark Completed' : 'Expedition Victory Scroll & Charter'}
               </p>
             </div>
@@ -52,7 +52,7 @@ export default function MissionDebriefModal({
         </div>
 
         {/* Parchment Body Content */}
-        <div className="p-6 space-y-4 text-xs">
+        <div className="p-3.5 sm:p-6 space-y-3 sm:space-y-4 text-xs">
           {/* Zero Losses Confirmation Seal */}
           <div className="bg-[#0b1f14]/80 border-2 border-[#10b981]/60 rounded-lg p-3.5 flex items-center gap-3.5 shadow-[0_0_25px_rgba(16,185,129,0.15)] ring-1 ring-[#047857]/40">
             <div className="w-11 h-11 rounded-full bg-gradient-to-b from-[#10b981] to-[#047857] border-2 border-[#6ee7b7] flex items-center justify-center shrink-0 shadow">

@@ -80,3 +80,8 @@ html, body, #root {
     display: none !important;
   }
 }
+
+/* Snappy mobile touch interaction without tap delay */
+button, a, select, input, [role="button"] {
+  touch-action: manipulation;
+}

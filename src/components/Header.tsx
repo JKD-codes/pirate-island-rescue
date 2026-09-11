@@ -125,8 +125,23 @@ export default function Header({
         </div>
       </div>
 
-      {/* ─── Center: Official Benchmark & Directives & Sea Chart Controls ─── */}
-      <div className="flex items-center gap-2 flex-wrap">
+      {/* ─── Mobile-Only Compact Telemetry Strip (<640px) ─── */}
+      <div className="flex sm:hidden items-center gap-2 px-2.5 py-1 rounded bg-[#160d07] border border-[#8b5a2b]/70 text-[10px] font-mono shadow-inner">
+        <span className="text-rose-400 font-bold flex items-center gap-1" title="Marooned Castaways">
+          <Skull size={11} /> {totalSurvivors}
+        </span>
+        <span className="text-[#c89b3c]/40">•</span>
+        <span className="text-emerald-400 font-bold flex items-center gap-1" title="Rescued to Safety">
+          <Coins size={11} /> {totalRescued}
+        </span>
+        <span className="text-[#c89b3c]/40">•</span>
+        <span className="text-sky-400 font-bold flex items-center gap-1" title="Fleet Free Berths">
+          <Ship size={11} /> {fleetCapacity}
+        </span>
+      </div>
+
+      {/* ─── Center: Official Benchmark & Directives & Sea Chart Controls (≥640px) ─── */}
+      <div className="hidden sm:flex items-center gap-2 flex-wrap">
         {/* Official Directives & Key Requirements Modal Button */}
         <button
           onClick={onOpenRequirements}

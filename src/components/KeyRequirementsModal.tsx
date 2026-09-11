@@ -84,24 +84,24 @@ export default function KeyRequirementsModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in font-heading">
-      <div className="w-full max-w-2xl max-h-[90vh] bg-gradient-to-b from-[#1b1008] via-[#140b05] to-[#0c0603] border-2 border-[#d4af37] rounded-xl shadow-[0_0_80px_rgba(0,0,0,0.95)] overflow-hidden ring-4 ring-[#2c1808] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-4 animate-fade-in font-heading">
+      <div className="w-full max-w-2xl max-h-[94vh] sm:max-h-[90vh] bg-gradient-to-b from-[#1b1008] via-[#140b05] to-[#0c0603] border-2 border-[#d4af37] rounded-xl shadow-[0_0_80px_rgba(0,0,0,0.95)] overflow-hidden ring-4 ring-[#2c1808] flex flex-col">
         {/* Ornate Header */}
-        <div className="bg-gradient-to-r from-[#241307] via-[#331b0a] to-[#241307] border-b border-[#8b5a2b] px-6 py-4 flex items-center justify-between shadow-md shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-b from-[#f59e0b] to-[#b45309] border border-[#fde68a] flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.5)] shrink-0">
-              <CheckCircle2 className="text-[#1c0d02]" size={20} />
+        <div className="bg-gradient-to-r from-[#241307] via-[#331b0a] to-[#241307] border-b border-[#8b5a2b] px-3.5 py-2.5 sm:px-6 sm:py-4 flex items-center justify-between shadow-md shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-b from-[#f59e0b] to-[#b45309] border border-[#fde68a] flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.5)] shrink-0">
+              <CheckCircle2 className="text-[#1c0d02]" size={18} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-extrabold uppercase tracking-[0.16em] text-[#fef3c7] drop-shadow">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h2 className="text-xs sm:text-sm font-extrabold uppercase tracking-[0.14em] text-[#fef3c7] drop-shadow">
                   Key Requirements & Directives
                 </h2>
-                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/70 text-emerald-300">
+                <span className="text-[8.5px] sm:text-[9px] font-bold uppercase px-1.5 sm:px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/70 text-emerald-300">
                   5/5 Verified
                 </span>
               </div>
-              <p className="text-[10px] text-[#d4af37] uppercase tracking-widest font-parchment">
+              <p className="text-[9px] sm:text-[10px] text-[#d4af37] uppercase tracking-widest font-parchment">
                 [PS #05] Pirate Island Rescue • Category: AI / ML
               </p>
             </div>
@@ -115,7 +115,7 @@ export default function KeyRequirementsModal({
         </div>
 
         {/* Scrollable Body */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+        <div className="p-3 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1 text-xs">
           {/* Official Problem Formulation Box */}
           <div className="bg-[#120803] border border-[#8b5a2b]/70 rounded-lg p-3.5 shadow-inner space-y-2">
             <div className="flex items-center gap-2 text-[#d4af37] text-[11px] font-extrabold uppercase tracking-wider">
